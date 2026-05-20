@@ -1,0 +1,49 @@
+# synthseg-wrapper example config
+#
+# Two input modes are supported. Use exactly one of `input.files` or
+# `input.dataset`. The dataset mode uses nifti-finder's AllPurposeFileExplorer
+# under the hood; the `filters` block accepts the same nested ComposeFilter
+# shape as hd-bet-wrapper.
+
+input:
+  dataset:
+    root: /data/my_bids
+    patterns: "**/anat/*T1w.nii*"
+    filters:
+      name: ExcludeFileSuffix
+      kwargs: { suffix: "_synthseg" }
+
+  # Alternative: explicit file list (mutually exclusive with `dataset`).
+  # files:
+  #   - /data/sub-01/anat/sub-01_T1w.nii.gz
+  #   - /data/sub-02/anat/sub-02_T1w.nii.gz
+
+output:
+  output_dir: /data/derivatives/synthseg
+  save_segmentation: true
+  segmentation_suffix: synthseg          # -> <stem>_synthseg.nii.gz
+  save_posteriors: false
+  posteriors_suffix: post                # -> <stem>_post.nii.gz
+  save_resampled: false
+  resampled_suffix: resampled            # -> <stem>_resampled.nii.gz
+  save_volumes: true
+  volumes_filename: volumes.csv          # written under output_dir
+  save_qc: true
+  qc_filename: qc.csv                    # written under output_dir
+  overwrite: false
+
+synthseg:
+  synthseg_home: ~/Photo-SynthSeg        # provisioned by `synthseg-setup`
+  python_executable: null                # null -> use the wrapper's interpreter
+  parc: false                            # --parc:   cortex parcellation
+  robust: false                          # --robust: slower, robust predictions
+  fast: false                            # --fast:   skip some postprocessing
+  ct: false                              # --ct:     clip to [0,80] for CT
+  cpu: false                             # --cpu:    force CPU
+  threads: 4                             # --threads N
+  crop: null                             # --crop X [Y Z]
+  v1: false                              # --v1:     use SynthSeg 1.0
+
+logging:
+  log_dir: /data/derivatives/synthseg/_logs
+  level: INFO

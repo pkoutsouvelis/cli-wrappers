@@ -1,0 +1,44 @@
+# hd-bet-wrapper example config
+#
+# Two input modes are supported. Use exactly one of `input.files` or
+# `input.dataset`. The dataset mode uses nifti-finder's AllPurposeFileExplorer
+# under the hood; the `filters` block is forwarded to a nested filter
+# factory and accepts ComposeFilter (single or list of children).
+
+input:
+  dataset:
+    root: /data/my_bids
+    patterns: "**/anat/*T1w.nii*"
+    filters:
+      name: ComposeFilter
+      kwargs:
+        logic: AND
+        filters:
+          - name: ExcludeFileSuffix
+            kwargs: { suffix: "_bet" }
+          - name: ExcludeFileSuffix
+            kwargs: { suffix: "_mask" }
+
+  # Alternative: explicit file list (mutually exclusive with `dataset`).
+  # files:
+  #   - /data/sub-01/anat/sub-01_T1w.nii.gz
+  #   - /data/sub-02/anat/sub-02_T1w.nii.gz
+
+output:
+  output_dir: /data/derivatives/hd-bet
+  save_mask: true
+  save_bet_image: true
+  mask_suffix: mask
+  bet_image_suffix: bet
+  overwrite: false
+
+hdbet:
+  device: cuda                 # cuda | cpu | mps | auto
+  use_tta: true                # disable for faster CPU runs
+  num_processes_preprocessing: 4
+  num_processes_segmentation_export: 8
+  verbose: false
+
+logging:
+  log_dir: /data/derivatives/hd-bet/_logs
+  level: INFO

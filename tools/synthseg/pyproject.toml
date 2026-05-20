@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "synthseg-wrapper"
+version = "0.1.0"
+description = "Batch-friendly wrapper around Photo-SynthSeg (TF 2.15) with nifti-finder discovery."
+# Photo-SynthSeg's tensorflow[and-cuda]==2.15 pin currently caps Python at 3.11.
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "cliwrap-core",
+    "nifti-finder==1.2.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# Everything needed to actually run Photo-SynthSeg in the same venv.
+# `gpu` adds CUDA/cuDNN wheels via tensorflow[and-cuda]; use `cpu` on macOS.
+gpu = [
+    "tensorflow[and-cuda]==2.15.*",
+    "nibabel",
+    "scipy",
+]
+cpu = [
+    "tensorflow==2.15.*",
+    "nibabel",
+    "scipy",
+]
+test = [
+    "pytest>=8.0",
+    "nibabel>=5.0",
+]
+
+[project.scripts]
+synthseg-wrapper = "synthseg_wrapper.cli:main"
+synthseg-setup = "synthseg_wrapper.setup:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["synthseg_wrapper*"]
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+testpaths = ["tests"]

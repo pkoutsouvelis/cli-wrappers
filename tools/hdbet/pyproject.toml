@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hd-bet-wrapper"
+version = "0.1.0"
+description = "Wrapper for HD-BET coupled with flexible file exploration for efficient batch processing."
+requires-python = ">=3.11"
+dependencies = [
+    "cliwrap-core",
+    "hd-bet==2.0.1",
+    "nifti-finder==1.2.0",
+    "torch==2.5.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+    "nibabel>=5.0",
+]
+
+[project.scripts]
+hd-bet-wrapper = "hdbet_wrapper.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["hdbet_wrapper*"]
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+testpaths = ["tests"]
