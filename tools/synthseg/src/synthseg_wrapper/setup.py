@@ -22,7 +22,7 @@ import sys
 import zipfile
 from pathlib import Path
 
-_REPO_URL = "https://github.com/MGH-LEMoN/Photo-SynthSeg.git"
+_REPO_URL = "https://github.com/MGH-LEMoN/Photo-SynthSeg/tree/synthseg_tf2.15"
 _BRANCH = "synthseg_tf2.15"
 _WEIGHTS_DIR_IN_ZIP = "SynthSeg_models"
 
