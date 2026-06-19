@@ -179,9 +179,7 @@ class BaseRunner:
         sep = "_" if suffix else ""
         return self._out_parent_for(p) / f"{stem}{sep}{suffix}{ext}"
 
-    def _plan_outputs(
-        self, specs: list[OutputSpec]
-    ) -> dict[str, list[str]]:
+    def _plan_outputs(self, specs: list[OutputSpec]) -> dict[str, list[str]]:
         """Compute parallel input/output path lists.
 
         For each input file in ``self._input_files``, an output path is built

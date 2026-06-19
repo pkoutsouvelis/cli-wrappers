@@ -27,9 +27,9 @@ output:
   save_resampled: false
   resampled_suffix: resampled            # -> <stem>_resampled.nii.gz
   save_volumes: true
-  volumes_filename: volumes.csv          # written under output_dir
+  volumes_suffix: volumes                # -> <stem>_volumes.csv
   save_qc: true
-  qc_filename: qc.csv                    # written under output_dir
+  qc_suffix: qc                          # -> <stem>_qc.csv
   overwrite: false
 
 synthseg:

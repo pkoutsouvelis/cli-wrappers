@@ -110,8 +110,10 @@ class FakeSubprocess:
                 _write_nifti(Path(p))
 
         for flag in ("--vol", "--qc"):
-            csv_path = self._arg(cmd, flag)
-            if csv_path:
+            list_path = self._arg(cmd, flag)
+            if not list_path:
+                continue
+            for csv_path in self._read_list(list_path):
                 p = Path(csv_path)
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_text("region,volume\n")

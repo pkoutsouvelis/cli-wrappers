@@ -16,7 +16,6 @@ from cliwrap_core.config import (
     reject_unknown_keys,
 )
 
-
 _OUTPUT_KEYS = {
     "output_dir",
     "save_segmentation",
@@ -26,9 +25,9 @@ _OUTPUT_KEYS = {
     "save_resampled",
     "resampled_suffix",
     "save_volumes",
-    "volumes_filename",
+    "volumes_suffix",
     "save_qc",
-    "qc_filename",
+    "qc_suffix",
     "overwrite",
 }
 
@@ -88,14 +87,13 @@ def load_config(path: str | Path) -> dict[str, Any]:
             "Run `synthseg-setup` to provision one."
         )
 
-    # The output_dir is also effectively required when save_volumes / save_qc
-    # produce single CSV files: SynthSeg writes them at this directory's root.
+    # Per-input volumes/QC CSVs mirror the segmentation layout under output_dir.
     save_volumes = output_cfg.get("save_volumes", False)
     save_qc = output_cfg.get("save_qc", False)
     if (save_volumes or save_qc) and "output_dir" not in output_cfg:
         raise ValueError(
             "output.output_dir is required when save_volumes or save_qc is true "
-            "(CSV files are written at the output root)."
+            "(per-input CSV files are written under the mirrored output tree)."
         )
 
     # Configuration of `runner` constructor (split between init and call kwargs).

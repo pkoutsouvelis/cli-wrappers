@@ -9,7 +9,6 @@ import pytest
 
 from cliwrap_core.logging_utils import get_logger, setup_logger
 
-
 _LOGGER_NAME = "cliwrap_test_logger"
 _LOGGER_LABEL = "TEST WRAPPER"
 

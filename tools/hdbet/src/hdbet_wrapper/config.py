@@ -17,7 +17,6 @@ from cliwrap_core.config import (
     reject_unknown_keys,
 )
 
-
 _OUTPUT_KEYS = {
     "output_dir",
     "save_mask",

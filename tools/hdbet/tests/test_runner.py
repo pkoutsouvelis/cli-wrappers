@@ -8,7 +8,6 @@ import pytest
 
 from hdbet_wrapper.runner import HDBETRunner
 
-
 # ---------------------------------------------------------------------------
 # Construction-time validation
 # ---------------------------------------------------------------------------

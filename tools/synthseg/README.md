@@ -89,9 +89,9 @@ output:
   save_resampled: false
   resampled_suffix: resampled
   save_volumes: true
-  volumes_filename: volumes.csv
+  volumes_suffix: volumes
   save_qc: true
-  qc_filename: qc.csv
+  qc_suffix: qc
   overwrite: false
 
 synthseg:
@@ -128,8 +128,10 @@ Output behaviour:
   alongside the inputs.
 - `files` mode writes outputs to `output_dir` (flat) when set, else alongside
   each input.
-- `volumes_filename` and `qc_filename` (if enabled) are written at
-  `output_dir/` and therefore require `output_dir` to be set.
+- `volumes_suffix` and `qc_suffix` (if enabled) produce one CSV per input,
+  mirrored under `output_dir` like segmentations (e.g. `sub-01_T1w_qc.csv`).
+  SynthSeg batch mode requires these as list files, so the wrapper plans
+  per-input paths and passes them via temporary `volumes.txt` / `qc.txt` lists.
 
 ## Python use
 

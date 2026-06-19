@@ -10,7 +10,9 @@ import pytest
 from synthseg_wrapper.setup import install_weights
 
 
-def _make_weights_zip(zip_path: Path, *, top_level_dir: str = "SynthSeg_models") -> Path:
+def _make_weights_zip(
+    zip_path: Path, *, top_level_dir: str = "SynthSeg_models"
+) -> Path:
     with zipfile.ZipFile(zip_path, "w") as zf:
         zf.writestr(f"{top_level_dir}/synthseg_2.0.h5", b"weights")
         zf.writestr(f"{top_level_dir}/synthseg_parc_2.0.h5", b"weights")

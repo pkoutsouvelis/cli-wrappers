@@ -8,7 +8,6 @@ import pytest
 
 from synthseg_wrapper.runner import SynthSegRunner
 
-
 # ---------------------------------------------------------------------------
 # Construction-time validation
 # ---------------------------------------------------------------------------
@@ -137,16 +136,20 @@ def test_run_writes_volumes_and_qc_csvs(
         synthseg_home=fake_photo_synthseg,
         save_volumes=True,
         save_qc=True,
-        volumes_filename="vols.csv",
-        qc_filename="qc-scores.csv",
+        volumes_suffix="vols",
+        qc_suffix="qc-scores",
     )
     runner()
 
-    assert (out_dir / "vols.csv").exists()
-    assert (out_dir / "qc-scores.csv").exists()
+    for sub in ("sub-01", "sub-02"):
+        anat = out_dir / sub / "ses-01" / "anat"
+        assert (anat / f"{sub}_ses-01_T1w_vols.csv").exists()
+        assert (anat / f"{sub}_ses-01_T1w_qc-scores.csv").exists()
     [cmd] = patch_synthseg.calls
     assert "--vol" in cmd
     assert "--qc" in cmd
+    assert Path(patch_synthseg._arg(cmd, "--vol")).read_text().count("\n") == 2
+    assert Path(patch_synthseg._arg(cmd, "--qc")).read_text().count("\n") == 2
 
 
 def test_overwrite_false_skips_existing_outputs(

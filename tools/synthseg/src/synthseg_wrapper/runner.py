@@ -29,7 +29,7 @@ class SynthSegRunner(BaseRunner):
         data: Input spec (single file, list, or dataset mapping). See
             :class:`cliwrap_core.BaseRunner` for accepted shapes.
         output_dir: Root output directory. Required when ``save_volumes`` or
-            ``save_qc`` is True (CSV files are written here).
+            ``save_qc`` is True (per-input CSV files are mirrored here).
         synthseg_home: Path to a Photo-SynthSeg clone with ``models/``
             populated. The predict script lives at
             ``{synthseg_home}/scripts/commands/SynthSeg_predict.py``.
@@ -42,10 +42,12 @@ class SynthSegRunner(BaseRunner):
         posteriors_suffix: Suffix for posteriors files.
         save_resampled: Whether to save the resampled images SynthSeg produces.
         resampled_suffix: Suffix for resampled files.
-        save_volumes: Whether to ask SynthSeg for a volumes CSV.
-        volumes_filename: Filename (under ``output_dir``) for the volumes CSV.
-        save_qc: Whether to ask SynthSeg for a QC CSV.
-        qc_filename: Filename (under ``output_dir``) for the QC CSV.
+        save_volumes: Whether to ask SynthSeg for per-input volumes CSVs.
+        volumes_suffix: Suffix for volumes CSV files (e.g. ``volumes`` ->
+            ``<input_stem>_volumes.csv``).
+        save_qc: Whether to ask SynthSeg for per-input QC CSVs.
+        qc_suffix: Suffix for QC CSV files (e.g. ``qc`` ->
+            ``<input_stem>_qc.csv``).
         overwrite: Whether to re-process inputs whose segmentation already exists.
         log_dir: Directory for a timestamped run log; stdout-only when None.
         log_level: Minimum log level.
@@ -65,9 +67,9 @@ class SynthSegRunner(BaseRunner):
         save_resampled: bool = False,
         resampled_suffix: str = "resampled",
         save_volumes: bool = False,
-        volumes_filename: str = "volumes.csv",
+        volumes_suffix: str = "volumes",
         save_qc: bool = False,
-        qc_filename: str = "qc.csv",
+        qc_suffix: str = "qc",
         overwrite: bool = True,
         log_dir: Path | str | None = None,
         log_level: LogLevel = "INFO",
@@ -90,8 +92,8 @@ class SynthSegRunner(BaseRunner):
             ("segmentation_suffix", segmentation_suffix),
             ("posteriors_suffix", posteriors_suffix),
             ("resampled_suffix", resampled_suffix),
-            ("volumes_filename", volumes_filename),
-            ("qc_filename", qc_filename),
+            ("volumes_suffix", volumes_suffix),
+            ("qc_suffix", qc_suffix),
         ]:
             if not isinstance(val, str):
                 raise ValueError(f"{name} must be a string, got {type(val).__name__}")
@@ -103,9 +105,9 @@ class SynthSegRunner(BaseRunner):
         self._save_resampled = save_resampled
         self._resampled_suffix = resampled_suffix
         self._save_volumes = save_volumes
-        self._volumes_filename = volumes_filename
+        self._volumes_suffix = volumes_suffix
         self._save_qc = save_qc
-        self._qc_filename = qc_filename
+        self._qc_suffix = qc_suffix
 
         self._synthseg_home = resolve_path(synthseg_home)
         self._predict_script = (
@@ -160,7 +162,25 @@ class SynthSegRunner(BaseRunner):
                 required=self._save_resampled,
             ),
         ]
-        return self._plan_outputs(specs)
+        plans = self._plan_outputs(specs)
+        inputs = plans["__inputs__"]
+        if self._save_volumes:
+            plans["volumes"] = [
+                str(self._csv_output_path(Path(inp), self._volumes_suffix))
+                for inp in inputs
+            ]
+        if self._save_qc:
+            plans["qc"] = [
+                str(self._csv_output_path(Path(inp), self._qc_suffix)) for inp in inputs
+            ]
+        return plans
+
+    def _csv_output_path(self, p: Path, suffix: str) -> Path:
+        """Per-input CSV path for batch-mode ``--vol`` / ``--qc`` list files."""
+        stem, _ = self._stem_and_ext(p)
+        out = self._out_parent_for(p) / f"{stem}_{suffix}.csv"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        return out
 
     def _write_list(self, parent: Path, filename: str, items: list[str]) -> Path:
         p = parent / filename
@@ -182,7 +202,9 @@ class SynthSegRunner(BaseRunner):
         v1: bool,
     ) -> list[str]:
         inputs_list = self._write_list(list_dir, "inputs.txt", plans["__inputs__"])
-        seg_list = self._write_list(list_dir, "segmentations.txt", plans["segmentation"])
+        seg_list = self._write_list(
+            list_dir, "segmentations.txt", plans["segmentation"]
+        )
 
         cmd: list[str] = [
             self._python,
@@ -196,17 +218,19 @@ class SynthSegRunner(BaseRunner):
         ]
 
         if self._save_posteriors:
-            post_list = self._write_list(list_dir, "posteriors.txt", plans["posteriors"])
+            post_list = self._write_list(
+                list_dir, "posteriors.txt", plans["posteriors"]
+            )
             cmd += ["--post", str(post_list)]
         if self._save_resampled:
             res_list = self._write_list(list_dir, "resampled.txt", plans["resampled"])
             cmd += ["--resample", str(res_list)]
         if self._save_volumes:
-            assert self._output_dir is not None
-            cmd += ["--vol", str(self._output_dir / self._volumes_filename)]
+            vol_list = self._write_list(list_dir, "volumes.txt", plans["volumes"])
+            cmd += ["--vol", str(vol_list)]
         if self._save_qc:
-            assert self._output_dir is not None
-            cmd += ["--qc", str(self._output_dir / self._qc_filename)]
+            qc_list = self._write_list(list_dir, "qc.txt", plans["qc"])
+            cmd += ["--qc", str(qc_list)]
 
         for flag, on in [
             ("parc", parc),
