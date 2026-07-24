@@ -54,7 +54,7 @@ def parse_input(raw: dict[str, Any]) -> dict[str, Any]:
 
     Accepts exactly one of:
       - ``files: [...]``
-      - ``dataset: {root, patterns, filters?}``
+      - ``dataset: {root, patterns, levels?, filters?}``
 
     Returns ``{"data": <files-or-dataset-payload>}`` which downstream runners
     take as their ``data`` constructor argument.

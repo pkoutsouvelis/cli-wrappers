@@ -77,6 +77,20 @@ def test_plan_outputs_mirrors_under_root(tmp_path: Path):
     assert plans["seg"] == [str(out_dir / "sub-01" / "anat" / "T1w_synthseg.nii.gz")]
 
 
+def test_dataset_levels_are_forwarded(tmp_path: Path):
+    root = tmp_path / "ds"
+    keep = _touch(root / "PT001" / "a_T1w.nii.gz")
+    _touch(root / "other" / "b_T1w.nii.gz")
+    runner = _DummyRunner(
+        data={
+            "root": str(root),
+            "patterns": "*T1w.nii*",
+            "levels": {"dataset": "PT*"},
+        }
+    )
+    assert runner._input_files == [keep]
+
+
 def test_plan_outputs_skips_when_required_output_exists(tmp_path: Path):
     p = _touch(tmp_path / "scan.nii.gz")
     _touch(tmp_path / "scan_synthseg.nii.gz")  # pretend output exists

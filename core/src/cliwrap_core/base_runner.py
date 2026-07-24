@@ -3,7 +3,8 @@
 :class:`BaseRunner` absorbs the parts every tool wrapper repeats:
 
 - Input resolution: a single file, a list of files, or a dataset mapping with
-  ``root`` + ``patterns`` (+ optional ``filters``) handed to ``nifti-finder``.
+  ``root`` + ``patterns`` (+ optional ``levels`` / ``filters``) handed to
+  ``nifti-finder``.
 - Output planning: given a list of :class:`OutputSpec` items, build the parallel
   input/output path lists (mirrored under ``output_dir`` when in dataset mode)
   with overwrite semantics.
@@ -55,7 +56,9 @@ class BaseRunner:
 
     Args:
         data: Input spec: a single Path/str, a list of Paths/strs, or a dataset
-            mapping ``{"root": ..., "patterns": ..., "filters": ...}``.
+            mapping ``{"root": ..., "patterns": ..., "levels": ..., "filters": ...}``.
+            ``levels`` and ``filters`` are optional; omit ``levels`` for a flat
+            recursive scan.
         output_dir: Root output directory. When ``None`` and ``data`` is a
             single file or a list, outputs land next to each input; when
             ``None`` and ``data`` is a dataset mapping, outputs land next to
@@ -144,12 +147,14 @@ class BaseRunner:
 
             try:
                 explorer = get_data_explorer(
-                    data["patterns"], data.get("filters", None)
+                    patterns=data["patterns"],
+                    levels=data.get("levels"),
+                    filters=data.get("filters"),
                 )
             except Exception as e:
                 raise RuntimeError(
                     "Failed to bind arguments to data explorer; see "
-                    "``nifti_finder``'s documentation of ``AllPurposeFileExplorer`` for "
+                    "``nifti_finder``'s documentation of ``FileFinder`` for "
                     "more details."
                 ) from e
 

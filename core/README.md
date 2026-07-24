@@ -12,8 +12,8 @@ Shared building blocks for the wrappers in [`tools/`](../tools/).
   `reject_unknown_keys` / `require_keys` helpers used by every tool's config
   loader.
 - `cliwrap_core.explorer_factory.get_data_explorer` — factory that builds a
-  `nifti_finder.AllPurposeFileExplorer` from the nested YAML filter spec
-  (supports `ComposeFilter` recursively).
+  `nifti_finder.FileFinder` from `patterns`, optional `levels`, and the nested
+  YAML filter spec (supports `ComposeFilter` recursively).
 - `cliwrap_core.logging_utils.setup_logger` — stdout + optional timestamped
   file handler, parametrised by logger name, bracketed label, and file prefix
   so each tool's logs are visibly attributable.
