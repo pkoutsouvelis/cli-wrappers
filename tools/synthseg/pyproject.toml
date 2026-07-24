@@ -10,7 +10,7 @@ description = "Batch-friendly wrapper around Photo-SynthSeg (TF 2.15) with nifti
 requires-python = ">=3.11,<3.12"
 dependencies = [
     "cliwrap-core",
-    "nifti-finder==1.2.0",
+    "nifti-finder>=2.0.0,<3.0.0",
     "pyyaml>=6.0",
 ]
 

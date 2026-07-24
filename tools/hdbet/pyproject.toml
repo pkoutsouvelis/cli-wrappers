@@ -10,7 +10,7 @@ requires-python = ">=3.11"
 dependencies = [
     "cliwrap-core",
     "hd-bet==2.0.1",
-    "nifti-finder==1.2.0",
+    "nifti-finder>=2.0.0,<3.0.0",
     "torch==2.5.0",
     "pyyaml>=6.0",
 ]
