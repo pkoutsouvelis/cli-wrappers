@@ -42,6 +42,8 @@ _SYNTHSEG_KEYS = {
     "threads",
     "crop",
     "v1",
+    "num_parts",
+    "part_idx",
 }
 
 _TOP_LEVEL_KEYS = {"input", "output", "synthseg", "logging"}
@@ -103,7 +105,18 @@ def load_config(path: str | Path) -> dict[str, Any]:
     }
     call_kwargs = {
         k: synthseg_cfg[k]
-        for k in ("parc", "robust", "fast", "ct", "cpu", "threads", "crop", "v1")
+        for k in (
+            "parc",
+            "robust",
+            "fast",
+            "ct",
+            "cpu",
+            "threads",
+            "crop",
+            "v1",
+            "num_parts",
+            "part_idx",
+        )
         if k in synthseg_cfg
     }
 

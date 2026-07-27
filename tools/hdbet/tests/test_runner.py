@@ -182,3 +182,49 @@ def test_invalid_device_raises(single_nifti: Path, patch_hdbet):
     runner = HDBETRunner(data=single_nifti)
     with pytest.raises(ValueError, match="Invalid device"):
         runner(device="tpu")  # type: ignore[arg-type]
+
+
+def test_part_idx_filters_predictor_inputs(tmp_path: Path, patch_hdbet):
+    files = []
+    for name in ("a.nii.gz", "b.nii.gz", "c.nii.gz", "d.nii.gz"):
+        p = tmp_path / name
+        p.write_bytes(b"")
+        files.append(p)
+
+    runner = HDBETRunner(data=files, output_dir=tmp_path / "out")
+    runner(num_parts=2, part_idx=0)
+
+    assert len(patch_hdbet.calls) == 1
+    call = patch_hdbet.calls[0]
+    assert [inp[0] for inp in call["inputs"]] == [str(files[0]), str(files[1])]
+    assert call["num_parts"] == 1
+    assert call["part_id"] == 0
+    assert (tmp_path / "out" / "a_bet.nii.gz").exists()
+    assert (tmp_path / "out" / "b_bet.nii.gz").exists()
+    assert not (tmp_path / "out" / "c_bet.nii.gz").exists()
+
+
+def test_part_idx_list_selects_multiple_parts(tmp_path: Path, patch_hdbet, capsys):
+    files = []
+    for name in ("a.nii.gz", "b.nii.gz", "c.nii.gz", "d.nii.gz"):
+        p = tmp_path / name
+        p.write_bytes(b"")
+        files.append(p)
+
+    runner = HDBETRunner(data=files, output_dir=tmp_path / "out")
+    runner(num_parts=4, part_idx=[0, 2], dry_run=True)
+
+    out = capsys.readouterr().out
+    assert str(files[0]) in out
+    assert str(files[2]) in out
+    assert str(files[1]) not in out
+    assert str(files[3]) not in out
+    assert "before part slicing" in out
+    assert "after part slicing" in out
+    assert patch_hdbet.calls == []
+
+
+def test_invalid_part_idx_raises(single_nifti: Path, patch_hdbet):
+    runner = HDBETRunner(data=single_nifti)
+    with pytest.raises(ValueError, match="part_idx"):
+        runner(num_parts=2, part_idx=2)

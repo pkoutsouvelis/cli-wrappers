@@ -77,6 +77,8 @@ class FakeSubprocess:
         self.segmentations: list[list[str]] = []
         self.posteriors: list[list[str]] = []
         self.resampled: list[list[str]] = []
+        self.volumes: list[list[str]] = []
+        self.qc: list[list[str]] = []
 
     @staticmethod
     def _arg(cmd: list[str], flag: str) -> str | None:
@@ -113,7 +115,12 @@ class FakeSubprocess:
             list_path = self._arg(cmd, flag)
             if not list_path:
                 continue
-            for csv_path in self._read_list(list_path):
+            paths = self._read_list(list_path)
+            if flag == "--vol":
+                self.volumes.append(paths)
+            else:
+                self.qc.append(paths)
+            for csv_path in paths:
                 p = Path(csv_path)
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_text("region,volume\n")

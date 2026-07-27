@@ -141,3 +141,16 @@ def test_root_must_be_mapping(tmp_path: Path):
     bad.write_text("- 1\n- 2\n")
     with pytest.raises(ValueError, match="Config root must be a mapping"):
         load_config(bad)
+
+
+def test_hdbet_part_keys_are_accepted(tmp_path: Path):
+    cfg = load_config(
+        _write(
+            tmp_path / "cfg.yaml",
+            {
+                "input": {"files": ["/a.nii.gz"]},
+                "hdbet": {"num_parts": 4, "part_idx": [0, 2]},
+            },
+        )
+    )
+    assert cfg["hdbet"] == {"num_parts": 4, "part_idx": [0, 2]}

@@ -148,8 +148,8 @@ def test_run_writes_volumes_and_qc_csvs(
     [cmd] = patch_synthseg.calls
     assert "--vol" in cmd
     assert "--qc" in cmd
-    assert Path(patch_synthseg._arg(cmd, "--vol")).read_text().count("\n") == 2
-    assert Path(patch_synthseg._arg(cmd, "--qc")).read_text().count("\n") == 2
+    assert len(patch_synthseg.volumes[0]) == 2
+    assert len(patch_synthseg.qc[0]) == 2
 
 
 def test_overwrite_false_skips_existing_outputs(
@@ -199,3 +199,47 @@ def test_batches_in_single_subprocess_call(
     assert len(patch_synthseg.calls) == 1
     assert len(patch_synthseg.inputs[0]) == 2
     assert len(patch_synthseg.segmentations[0]) == 2
+
+
+def test_part_idx_filters_batch_lists(
+    tmp_path: Path, fake_photo_synthseg: Path, patch_synthseg, capsys
+):
+    files = []
+    for name in ("a.nii.gz", "b.nii.gz", "c.nii.gz", "d.nii.gz"):
+        p = tmp_path / name
+        p.write_bytes(b"")
+        files.append(p)
+
+    runner = SynthSegRunner(
+        data=files,
+        output_dir=tmp_path / "out",
+        synthseg_home=fake_photo_synthseg,
+    )
+    runner(num_parts=2, part_idx=1)
+
+    assert len(patch_synthseg.calls) == 1
+    assert patch_synthseg.inputs[0] == [str(files[2]), str(files[3])]
+    assert len(patch_synthseg.segmentations[0]) == 2
+
+
+def test_part_idx_list_dry_run(
+    tmp_path: Path, fake_photo_synthseg: Path, patch_synthseg, capsys
+):
+    files = []
+    for name in ("a.nii.gz", "b.nii.gz", "c.nii.gz", "d.nii.gz"):
+        p = tmp_path / name
+        p.write_bytes(b"")
+        files.append(p)
+
+    runner = SynthSegRunner(
+        data=files,
+        output_dir=tmp_path / "out",
+        synthseg_home=fake_photo_synthseg,
+    )
+    runner(num_parts=4, part_idx=[0, 2], dry_run=True)
+    out = capsys.readouterr().out
+    assert str(files[0]) in out
+    assert str(files[2]) in out
+    assert str(files[1]) not in out
+    assert "before part slicing" in out
+    assert patch_synthseg.calls == []

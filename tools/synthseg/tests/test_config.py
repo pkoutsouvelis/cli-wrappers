@@ -132,3 +132,20 @@ def test_call_kwargs_pass_through(tmp_path: Path):
         "threads": 8,
         "crop": [192, 192, 192],
     }
+
+
+def test_part_keys_pass_through_to_call_kwargs(tmp_path: Path):
+    cfg = load_config(
+        _write(
+            tmp_path / "cfg.yaml",
+            {
+                "input": {"files": ["/a.nii.gz"]},
+                "synthseg": {
+                    "synthseg_home": "/opt/Photo-SynthSeg",
+                    "num_parts": 4,
+                    "part_idx": [0, 2],
+                },
+            },
+        )
+    )
+    assert cfg["synthseg_call"] == {"num_parts": 4, "part_idx": [0, 2]}

@@ -279,6 +279,8 @@ class SynthSegRunner(BaseRunner):
         crop: list[int] | None = None,
         v1: bool = False,
         dry_run: bool = False,
+        num_parts: int = 1,
+        part_idx: int | list[int] = 0,
     ) -> None:
         """Run the SynthSeg wrapper.
 
@@ -292,6 +294,10 @@ class SynthSegRunner(BaseRunner):
             crop: Optional list of patch sizes (``--crop X Y Z``).
             v1: Use SynthSeg 1.0 instead of 2.0 (``--v1``).
             dry_run: Plan inputs/outputs and log them without running SynthSeg.
+            num_parts: Split planned pairs into this many contiguous jobs.
+                Defaults to ``1`` (no split).
+            part_idx: Which part(s) to run, as an ``int`` or ``list[int]`` in
+                ``[0, num_parts)``. Defaults to ``0``.
         """
         plans = self._plan()
         if not plans["__inputs__"]:
@@ -303,6 +309,11 @@ class SynthSegRunner(BaseRunner):
                 "Skipping %d files due to existing outputs and `overwrite=False`.",
                 len(self._input_files) - len(plans["__inputs__"]),
             )
+
+        plans = self._slice_plan(plans, num_parts=num_parts, part_idx=part_idx)
+        if not plans["__inputs__"]:
+            self._logger.info("No inputs to process after part slicing.")
+            return
 
         if dry_run:
             self._log_plan(plans)

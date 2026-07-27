@@ -105,6 +105,8 @@ synthseg:
   threads: 4                      # --threads N
   crop: null                      # --crop X [Y Z]
   v1: false                       # --v1
+  # num_parts: 4                  # split planned pairs into contiguous jobs
+  # part_idx: 0                   # int or list[int] in [0, num_parts)
 
 logging:
   log_dir: /data/derivatives/synthseg/_logs

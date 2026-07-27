@@ -12,7 +12,7 @@ from HD_BET.hd_bet_prediction import apply_bet, get_hdbet_predictor
 from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
 
 from cliwrap_core import BaseRunner, LogLevel, OutputSpec
-from cliwrap_core.base_runner import InputData
+from cliwrap_core.base_runner import InputData, PartIdx
 from hdbet_wrapper.utils import print_hd_bet_citation
 
 Device: TypeAlias = Literal["cuda", "cpu", "mps", "auto"]
@@ -85,7 +85,7 @@ class HDBETRunner(BaseRunner):
             log_file_prefix="hdbet_run",
         )
 
-    def _get_input_output_paths(self) -> tuple[list[list[str]], list[str], list[str]]:
+    def _plan(self) -> dict[str, list[str]]:
         # HD-BET treats mask as always-produced (required) and bet as optional.
         # When save_bet_image is True, an existing bet output should also block
         # re-processing (parity with the original implementation).
@@ -98,12 +98,7 @@ class HDBETRunner(BaseRunner):
                 required=self._save_bet_image,
             ),
         ]
-        plans = self._plan_outputs(specs)
-
-        inputs = [[s] for s in plans["__inputs__"]]
-        outputs_mask = plans["mask"]
-        outputs_bet = plans["bet"] if self._save_bet_image else []
-        return inputs, outputs_mask, outputs_bet
+        return self._plan_outputs(specs)
 
     def _get_predictor(
         self,
@@ -162,6 +157,8 @@ class HDBETRunner(BaseRunner):
         num_processes_segmentation_export: int = 8,
         verbose: bool = False,
         dry_run: bool = False,
+        num_parts: int = 1,
+        part_idx: PartIdx = 0,
     ) -> None:
         """Run the HD-BET wrapper.
 
@@ -172,30 +169,32 @@ class HDBETRunner(BaseRunner):
             num_processes_segmentation_export: HD-BET export parallelism.
             verbose: Verbose flag forwarded to HD-BET.
             dry_run: Print planned input/output pairs without running HD-BET.
+            num_parts: Split planned pairs into this many contiguous jobs.
+                Defaults to ``1`` (no split). Independent of nnU-Net's
+                ``num_parts`` (always ``1``).
+            part_idx: Which part(s) to run, as an ``int`` or sequence of ints in
+                ``[0, num_parts)``. Defaults to ``0``.
         """
-        inputs, outputs_mask, outputs_bet = self._get_input_output_paths()
+        plans = self._plan()
 
-        if len(inputs) == 0:
+        if len(plans["__inputs__"]) == 0:
             self._logger.info("No inputs to process.")
             return
 
-        if len(inputs) != len(self._input_files):
+        if len(plans["__inputs__"]) != len(self._input_files):
             self._logger.info(
                 "Skipping %d files due to existing outputs and `overwrite=False`.",
-                len(self._input_files) - len(inputs),
+                len(self._input_files) - len(plans["__inputs__"]),
             )
 
-        if len(inputs) != len(outputs_mask):
-            raise RuntimeError(
-                "Internal error: Number of output mask paths does not match "
-                f"number of input files: {len(inputs)} != {len(outputs_mask)}"
-            )
+        plans = self._slice_plan(plans, num_parts=num_parts, part_idx=part_idx)
+        if len(plans["__inputs__"]) == 0:
+            self._logger.info("No inputs to process after part slicing.")
+            return
 
-        if self._save_bet_image and len(inputs) != len(outputs_bet):
-            raise RuntimeError(
-                "Internal error: Number of output bet image paths does not match "
-                f"number of input files: {len(inputs)} != {len(outputs_bet)}"
-            )
+        inputs = [[s] for s in plans["__inputs__"]]
+        outputs_mask = plans["mask"]
+        outputs_bet = plans["bet"] if self._save_bet_image else []
 
         if dry_run:
             for i in range(len(inputs)):

@@ -113,3 +113,32 @@ def test_plan_outputs_does_not_skip_when_only_optional_exists(tmp_path: Path):
         ]
     )
     assert plans["__inputs__"] == [str(p)]
+
+
+def test_slice_plan_filters_aligned_lists(tmp_path: Path, capsys):
+    files = [_touch(tmp_path / f"{name}.nii.gz") for name in ("a", "b", "c", "d")]
+    runner = _DummyRunner(data=files, output_dir=tmp_path / "out")
+    plans = runner._plan_outputs(
+        [OutputSpec("seg", "synthseg", save=True, required=True)]
+    )
+    sliced = runner._slice_plan(plans, num_parts=4, part_idx=[0, 2])
+
+    assert sliced["__inputs__"] == [str(files[0]), str(files[2])]
+    assert [Path(p).name for p in sliced["seg"]] == [
+        "a_synthseg.nii.gz",
+        "c_synthseg.nii.gz",
+    ]
+    out = capsys.readouterr().out
+    assert "before part slicing" in out
+    assert "after part slicing" in out
+
+
+def test_slice_plan_rejects_unequal_lengths(tmp_path: Path):
+    p = _touch(tmp_path / "scan.nii.gz")
+    runner = _DummyRunner(data=p)
+    with pytest.raises(RuntimeError, match="unequal lengths"):
+        runner._slice_plan(
+            {"__inputs__": [str(p)], "seg": [str(p), str(p)]},
+            num_parts=1,
+            part_idx=0,
+        )

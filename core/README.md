@@ -6,8 +6,9 @@ Shared building blocks for the wrappers in [`tools/`](../tools/).
 
 - `cliwrap_core.BaseRunner` + `OutputSpec` — input resolution (single file,
   list, or `nifti-finder` dataset mapping) plus output-path planning with
-  dataset-root mirroring and overwrite semantics. Tool runners subclass this
-  and only have to write `__call__`.
+  dataset-root mirroring, overwrite semantics, and optional contiguous
+  `num_parts` / `part_idx` slicing via `_slice_plan`. Tool runners subclass
+  this and only have to write `__call__`.
 - `cliwrap_core.config` — `load_yaml`, `parse_input`, `parse_logging`, and the
   `reject_unknown_keys` / `require_keys` helpers used by every tool's config
   loader.
@@ -17,7 +18,8 @@ Shared building blocks for the wrappers in [`tools/`](../tools/).
 - `cliwrap_core.logging_utils.setup_logger` — stdout + optional timestamped
   file handler, parametrised by logger name, bracketed label, and file prefix
   so each tool's logs are visibly attributable.
-- `cliwrap_core.utils.resolve_path` / `get_ext`.
+- `cliwrap_core.utils.resolve_path` / `get_ext` / `normalize_part_indices` /
+  `slice_by_parts`.
 
 ## Install
 

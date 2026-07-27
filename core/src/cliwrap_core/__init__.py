@@ -20,7 +20,12 @@ from cliwrap_core.config import (
 )
 from cliwrap_core.explorer_factory import get_data_explorer
 from cliwrap_core.logging_utils import LogLevel, get_logger, setup_logger
-from cliwrap_core.utils import get_ext, resolve_path
+from cliwrap_core.utils import (
+    get_ext,
+    normalize_part_indices,
+    resolve_path,
+    slice_by_parts,
+)
 
 __all__ = [
     "BaseRunner",
@@ -30,11 +35,13 @@ __all__ = [
     "get_ext",
     "get_logger",
     "load_yaml",
+    "normalize_part_indices",
     "parse_input",
     "parse_logging",
     "reject_unknown_keys",
     "require_keys",
     "resolve_path",
     "setup_logger",
+    "slice_by_parts",
 ]
 __version__ = "0.1.0"

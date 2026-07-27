@@ -38,6 +38,9 @@ hdbet:
   num_processes_preprocessing: 4
   num_processes_segmentation_export: 8
   verbose: false
+  # Split planned pairs into contiguous jobs (nnU-Net part_id stays 0/1).
+  # num_parts: 4
+  # part_idx: 0                 # or e.g. [0, 2]
 
 logging:
   log_dir: /data/derivatives/hd-bet/_logs

@@ -11,12 +11,14 @@ in the output tree.
 ## Why
 
 - **Decouple discovery from inference.** Filter, glob, and compose the input
-  set with nifti-finder; let HD-BET focus on inference.
+set with nifti-finder; let HD-BET focus on inference.
 - **Keep HD-BET's batching speedup.** Files are forwarded to HD-BET's
-  `predict_from_files` so the model is initialized once for the entire batch,
-  no matter where the inputs live.
+`predict_from_files` so the model is initialized once for the entire batch,
+no matter where the inputs live.
 - **Configuration as data.** One YAML file fully describes a run: inputs,
-  filters, HD-BET flags, output layout, and logging.
+filters, HD-BET flags, output layout, and logging.
+
+
 
 ## Install
 
@@ -28,6 +30,8 @@ pip install -e .
 # with test extras
 pip install -e .[test]
 ```
+
+
 
 ## Quickstart
 
@@ -62,6 +66,8 @@ hdbet:
   num_processes_preprocessing: 4
   num_processes_segmentation_export: 8
   verbose: false
+  # num_parts: 4             # split planned pairs into contiguous jobs
+  # part_idx: 0              # int or list[int] in [0, num_parts)
 
 logging:
   log_dir: /data/derivatives/hd-bet/_logs
@@ -81,10 +87,12 @@ input:
 Output behaviour:
 
 - `dataset` mode mirrors each file's `root`-relative path under `output_dir`
-  (so BIDS layout is preserved). When `output_dir` is omitted, outputs land
-  alongside the inputs.
+(so BIDS layout is preserved). When `output_dir` is omitted, outputs land
+alongside the inputs.
 - `files` mode writes outputs to `output_dir` (flat) when set, else alongside
-  each input.
+each input.
+
+
 
 ## Python use
 
@@ -103,6 +111,8 @@ runner = HDBETRunner(
 runner(device="auto", use_tta=True)
 ```
 
+
+
 ## Licensing and citations
 
 This wrapper uses HD-BET. Please check its [license](https://github.com/MIC-DKFZ/HD-BET/blob/master/LICENSE).
@@ -115,3 +125,4 @@ Schlemmer HP, Heiland S, Wick W, Bendszus M, Maier-Hein KH, Kickingereder P.
 Automated brain extraction of multi-sequence MRI using artificial neural
 networks. Hum Brain Mapp. 2019; 1-13. https://doi.org/10.1002/hbm.24750
 ```
+

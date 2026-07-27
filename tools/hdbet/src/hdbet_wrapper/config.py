@@ -31,6 +31,8 @@ _HDBET_KEYS = {
     "num_processes_preprocessing",
     "num_processes_segmentation_export",
     "verbose",
+    "num_parts",
+    "part_idx",
 }
 _TOP_LEVEL_KEYS = {"input", "output", "hdbet", "logging"}
 

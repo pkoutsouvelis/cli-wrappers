@@ -8,6 +8,8 @@
 - Output planning: given a list of :class:`OutputSpec` items, build the parallel
   input/output path lists (mirrored under ``output_dir`` when in dataset mode)
   with overwrite semantics.
+- Optional contiguous part slicing of a planned path mapping via
+  :meth:`BaseRunner._slice_plan`.
 - A configured logger.
 
 Subclasses implement ``__call__`` to drive the tool-specific inference, using
@@ -18,13 +20,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, TypeAlias
+from typing import Any, Sequence, TypeAlias
 
 from cliwrap_core.explorer_factory import get_data_explorer
 from cliwrap_core.logging_utils import LogLevel, setup_logger
-from cliwrap_core.utils import get_ext, resolve_path
+from cliwrap_core.utils import (
+    get_ext,
+    normalize_part_indices,
+    resolve_path,
+    slice_by_parts,
+)
 
 InputData: TypeAlias = Path | str | list[Path] | list[str] | dict[str, Any]
+PartIdx: TypeAlias = int | Sequence[int]
 
 
 @dataclass(frozen=True)
@@ -222,6 +230,55 @@ class BaseRunner:
                 plans[spec.name].append(str(candidate_outputs[spec.name]))
 
         return plans
+
+    def _slice_plan(
+        self,
+        plans: dict[str, list[Any]],
+        *,
+        num_parts: int = 1,
+        part_idx: PartIdx = 0,
+    ) -> dict[str, list[Any]]:
+        """Keep only the planned pairs belonging to ``part_idx`` of ``num_parts``.
+
+        Every list value in ``plans`` is sliced with the same contiguous
+        partition so parallel input/output streams stay aligned. Logs the
+        count before and after slicing.
+        """
+        if not plans:
+            return plans
+
+        lengths = {key: len(values) for key, values in plans.items()}
+        if len(set(lengths.values())) > 1:
+            raise RuntimeError(
+                "Internal error: planned path lists have unequal lengths: " f"{lengths}"
+            )
+
+        part_indices = normalize_part_indices(part_idx, num_parts)
+        n_before = next(iter(lengths.values()), 0)
+        self._logger.info(
+            "Planned %d input/output pair(s) before part slicing "
+            "(num_parts=%d, part_idx=%s).",
+            n_before,
+            num_parts,
+            part_indices if len(part_indices) > 1 else part_indices[0],
+        )
+
+        if num_parts == 1 and part_indices == [0]:
+            self._logger.info(
+                "Part slicing is a no-op; keeping all %d pair(s).", n_before
+            )
+            return plans
+
+        sliced = {
+            key: slice_by_parts(values, num_parts, part_indices)
+            for key, values in plans.items()
+        }
+        self._logger.info(
+            "Kept %d of %d input/output pair(s) after part slicing.",
+            len(next(iter(sliced.values()), [])),
+            n_before,
+        )
+        return sliced
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover
         raise NotImplementedError("Subclasses must implement __call__")
