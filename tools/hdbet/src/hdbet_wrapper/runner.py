@@ -47,7 +47,7 @@ class HDBETRunner(BaseRunner):
         overwrite: bool = True,
         log_dir: Path | str | None = None,
         log_level: LogLevel = "INFO",
-        resolve_and_validate_explicit_filepaths: bool = True,
+        resolve_explicit_filepaths: bool = True,
     ) -> None:
         if not isinstance(save_mask, bool):
             raise ValueError(
@@ -81,7 +81,7 @@ class HDBETRunner(BaseRunner):
             overwrite=overwrite,
             log_dir=log_dir,
             log_level=log_level,
-            resolve_and_validate_explicit_filepaths=resolve_and_validate_explicit_filepaths,
+            resolve_explicit_filepaths=resolve_explicit_filepaths,
             logger_name="hdbet_wrapper",
             logger_label="HD-BET WRAPPER",
             log_file_prefix="hdbet_run",
@@ -171,12 +171,17 @@ class HDBETRunner(BaseRunner):
             num_processes_segmentation_export: HD-BET export parallelism.
             verbose: Verbose flag forwarded to HD-BET.
             dry_run: Print planned input/output pairs without running HD-BET.
-            num_parts: Split planned pairs into this many contiguous jobs.
-                Defaults to ``1`` (no split). Independent of nnU-Net's
-                ``num_parts`` (always ``1``).
+            num_parts: Split discovered inputs into this many contiguous jobs
+                *before* planning outputs. Defaults to ``1`` (no split).
+                Independent of nnU-Net's ``num_parts`` (always ``1``).
             part_idx: Which part(s) to run, as an ``int`` or sequence of ints in
                 ``[0, num_parts)``. Defaults to ``0``.
         """
+        self._slice_inputs(num_parts=num_parts, part_idx=part_idx)
+        if len(self._input_files) == 0:
+            self._logger.info("No inputs to process after part slicing.")
+            return
+
         plans = self._plan()
 
         if len(plans["__inputs__"]) == 0:
@@ -188,11 +193,6 @@ class HDBETRunner(BaseRunner):
                 "Skipping %d files due to existing outputs and `overwrite=False`.",
                 len(self._input_files) - len(plans["__inputs__"]),
             )
-
-        plans = self._slice_plan(plans, num_parts=num_parts, part_idx=part_idx)
-        if len(plans["__inputs__"]) == 0:
-            self._logger.info("No inputs to process after part slicing.")
-            return
 
         inputs = [[s] for s in plans["__inputs__"]]
         outputs_mask = plans["mask"]

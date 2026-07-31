@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Sequence, TypeVar
+from typing import Iterable, Sequence, TypeVar
 
 T = TypeVar("T")
 
@@ -22,14 +22,39 @@ def coerce_path(path: Path | str, *, resolve: bool = True) -> Path:
 def ensure_under_root(paths: Sequence[Path], root: Path) -> None:
     """Raise ``ValueError`` if any path is not under ``root``.
 
-    Both ``paths`` and ``root`` should already be resolved absolute paths.
+    Uses ``Path.relative_to`` only (no per-path ``resolve()``), so ``paths``
+    must already be in a form compatible with ``root`` (typically both
+    absolute and, if ``root`` was resolved, already realpath'd).
     """
-    root = root.resolve()
     for path in paths:
         try:
-            path.resolve().relative_to(root)
+            path.relative_to(root)
         except ValueError as e:
             raise ValueError(f"Input path {path} is not under root {root}") from e
+
+
+def maximal_directories(dirs: Iterable[Path]) -> list[Path]:
+    """Return directories that are not strict ancestors of another in ``dirs``.
+
+    ``Path.mkdir(parents=True)`` on these still creates any skipped ancestors,
+    so fewer ``mkdir`` calls are needed when both a parent and a child appear.
+    """
+    unique = list({Path(d) for d in dirs})
+    unique.sort(key=lambda p: len(p.parts), reverse=True)
+    kept: list[Path] = []
+    for d in unique:
+        if any(_is_strict_descendant(k, d) for k in kept):
+            continue
+        kept.append(d)
+    return kept
+
+
+def _is_strict_descendant(child: Path, parent: Path) -> bool:
+    try:
+        child.relative_to(parent)
+    except ValueError:
+        return False
+    return child != parent
 
 
 def read_path_list(path: Path | str, *, resolve_paths: bool = True) -> list[Path]:

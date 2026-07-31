@@ -8,8 +8,8 @@
 - Output planning: given a list of :class:`OutputSpec` items, build the parallel
   input/output path lists (mirrored under ``output_dir`` when in dataset mode)
   with overwrite semantics.
-- Optional contiguous part slicing of a planned path mapping via
-  :meth:`BaseRunner._slice_plan`.
+- Optional contiguous part slicing of discovered inputs via
+  :meth:`BaseRunner._slice_inputs` (before output planning).
 - A configured logger.
 
 Subclasses implement ``__call__`` to drive the tool-specific inference, using
@@ -18,6 +18,7 @@ the planned paths from :meth:`BaseRunner._plan_outputs`.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence, TypeAlias
@@ -28,6 +29,7 @@ from cliwrap_core.utils import (
     coerce_path,
     ensure_under_root,
     get_ext,
+    maximal_directories,
     normalize_part_indices,
     read_path_list,
     resolve_path,
@@ -74,9 +76,8 @@ class BaseRunner:
             recursive scan. ``from_file`` is a text file with one filepath per
             line (blank lines and ``#`` comments ignored). Optional ``root`` on
             ``files`` / ``from_file`` mirrors each path's root-relative parent
-            under ``output_dir`` and requires every path to lie under ``root``
-            when ``resolve_and_validate_explicit_filepaths`` is True. ``root`` is
-            always ``resolve()``-d when provided.
+            under ``output_dir``; every path must lie under ``root`` (always
+            checked). ``root`` is always ``resolve()``-d when provided.
         output_dir: Root output directory. When ``None`` and ``data`` is a
             single file, list, or from_file without ``root``, outputs land next
             to each input; when ``None`` and a ``root`` is set (explicit or
@@ -84,14 +85,13 @@ class BaseRunner:
         overwrite: Whether to re-process inputs whose required outputs exist.
         log_dir: Optional directory for a timestamped run log.
         log_level: Minimum log level.
-        resolve_and_validate_explicit_filepaths: If True (default), explicit
-            filepaths from ``files`` / ``from_file`` / a bare list are passed
-            through ``Path.resolve()`` and an optional ``root`` is checked with
-            :func:`~cliwrap_core.utils.ensure_under_root`. Set False to skip
-            those steps for the filepaths only (``~`` is still expanded) when
-            the list is already resolved offline — much faster on large lists /
-            slow filesystems. ``root`` itself is always resolved when set.
-            Has no effect on dataset discovery.
+        resolve_explicit_filepaths: If True (default), explicit filepaths from
+            ``files`` / ``from_file`` / a bare list are passed through
+            ``Path.resolve()``. Set False to only expand ``~`` when the list is
+            already resolved offline (time saving on large lists / slow
+            filesystems). ``root`` is always resolved and paths are always
+            checked against it; with False, listed paths must already match
+            the resolved ``root`` form. Has no effect on dataset discovery.
         logger_name: Python logger name (e.g. ``"hdbet_wrapper"``).
         logger_label: Bracketed log prefix (e.g. ``"HD-BET WRAPPER"``).
         log_file_prefix: Filename stem for the per-run log file.
@@ -104,7 +104,7 @@ class BaseRunner:
         overwrite: bool = True,
         log_dir: Path | str | None = None,
         log_level: LogLevel = "INFO",
-        resolve_and_validate_explicit_filepaths: bool = True,
+        resolve_explicit_filepaths: bool = True,
         *,
         logger_name: str,
         logger_label: str,
@@ -126,12 +126,12 @@ class BaseRunner:
             )
         self._overwrite = overwrite
 
-        if not isinstance(resolve_and_validate_explicit_filepaths, bool):
+        if not isinstance(resolve_explicit_filepaths, bool):
             raise ValueError(
-                "resolve_and_validate_explicit_filepaths must be a boolean, "
-                f"got {type(resolve_and_validate_explicit_filepaths).__name__}"
+                "resolve_explicit_filepaths must be a boolean, "
+                f"got {type(resolve_explicit_filepaths).__name__}"
             )
-        self._resolve_and_validate = resolve_and_validate_explicit_filepaths
+        self._resolve_explicit = resolve_explicit_filepaths
 
         if log_dir is not None and not isinstance(log_dir, (Path, str)):
             raise ValueError(
@@ -159,7 +159,7 @@ class BaseRunner:
             self._output_dir = None
 
     def _coerce(self, path: Path | str) -> Path:
-        return coerce_path(path, resolve=self._resolve_and_validate)
+        return coerce_path(path, resolve=self._resolve_explicit)
 
     def _resolve_data(self, data: InputData) -> tuple[Path | None, list[Path]]:
         if isinstance(data, (Path, str)):
@@ -226,7 +226,7 @@ class BaseRunner:
                 f"['files', 'from_file', 'root']; got unexpected keys {sorted(unknown)}"
             )
 
-        do_resolve = self._resolve_and_validate
+        do_resolve = self._resolve_explicit
         if "from_file" in data:
             from_file = data["from_file"]
             if not isinstance(from_file, (Path, str)):
@@ -262,13 +262,11 @@ class BaseRunner:
                 f"`root` must be a Path or str object, got {type(root_raw).__name__}"
             )
         root = resolve_path(root_raw)
-        if do_resolve:
-            ensure_under_root(files, root)
+        ensure_under_root(files, root)
         self._logger.info(
-            "Using root %s for output mirroring (%d path(s)%s).",
+            "Using root %s for output mirroring (%d path(s)).",
             root,
             len(files),
-            "" if do_resolve else "; validation skipped",
         )
         return root, files
 
@@ -289,21 +287,48 @@ class BaseRunner:
         sep = "_" if suffix else ""
         return self._out_parent_for(p) / f"{stem}{sep}{suffix}{ext}"
 
-    def _ensure_output_dirs(self, plans: dict[str, list[str]]) -> None:
-        """Create unique parent directories for planned outputs (once each)."""
+    def _ensure_output_dirs(
+        self, plans: dict[str, list[str]], *, workers: int = 32
+    ) -> None:
+        """Create parent directories for planned outputs.
+
+        Separate from :meth:`_plan_outputs` so dry-runs can skip mkdir.
+        Deduplicates to maximal (deepest) directories and creates them
+        concurrently (sequential ``mkdir`` is slow on network filesystems).
+        """
         parents: set[Path] = set()
         for key, paths in plans.items():
             if key == "__inputs__":
                 continue
             for path in paths:
                 parents.add(Path(path).parent)
+
+        to_create = maximal_directories(parents)
         self._logger.info(
-            "Ensuring %d unique output director%s...",
+            "Ensuring %d output director%s (%d unique parent path%s)...",
+            len(to_create),
+            "y" if len(to_create) == 1 else "ies",
             len(parents),
-            "y" if len(parents) == 1 else "ies",
+            "" if len(parents) == 1 else "s",
         )
-        for parent in parents:
-            parent.mkdir(parents=True, exist_ok=True)
+        if not to_create:
+            return
+
+        n_workers = max(1, min(workers, len(to_create)))
+
+        def _mkdir(path: Path) -> None:
+            path.mkdir(parents=True, exist_ok=True)
+
+        done = 0
+        with ThreadPoolExecutor(max_workers=n_workers) as pool:
+            futures = [pool.submit(_mkdir, p) for p in to_create]
+            for fut in as_completed(futures):
+                fut.result()
+                done += 1
+                if done == len(to_create) or done % 1000 == 0:
+                    self._logger.info(
+                        "Output dir progress: %d/%d.", done, len(to_create)
+                    )
 
     def _plan_outputs(self, specs: list[OutputSpec]) -> dict[str, list[str]]:
         """Compute parallel input/output path lists.
@@ -313,8 +338,8 @@ class BaseRunner:
         skipped when ``overwrite`` is False; the skip is enforced consistently
         across all required outputs.
 
-        Does not create directories; call :meth:`_ensure_output_dirs` on the
-        (preferably part-sliced) plan before writing outputs.
+        Does not create directories; call :meth:`_ensure_output_dirs` before
+        writing outputs (skipped on dry-run).
 
         Returns:
             A mapping with:
@@ -355,32 +380,22 @@ class BaseRunner:
 
         return plans
 
-    def _slice_plan(
+    def _slice_inputs(
         self,
-        plans: dict[str, list[Any]],
         *,
         num_parts: int = 1,
         part_idx: PartIdx = 0,
-    ) -> dict[str, list[Any]]:
-        """Keep only the planned pairs belonging to ``part_idx`` of ``num_parts``.
+    ) -> None:
+        """Restrict ``self._input_files`` to ``part_idx`` of ``num_parts``.
 
-        Every list value in ``plans`` is sliced with the same contiguous
-        partition so parallel input/output streams stay aligned. Logs the
-        count before and after slicing.
+        Partitions the full discovered input list into contiguous slices
+        *before* output planning, so each job only plans/stat's its own
+        subset.
         """
-        if not plans:
-            return plans
-
-        lengths = {key: len(values) for key, values in plans.items()}
-        if len(set(lengths.values())) > 1:
-            raise RuntimeError(
-                "Internal error: planned path lists have unequal lengths: " f"{lengths}"
-            )
-
         part_indices = normalize_part_indices(part_idx, num_parts)
-        n_before = next(iter(lengths.values()), 0)
+        n_before = len(self._input_files)
         self._logger.info(
-            "Planned %d input/output pair(s) before part slicing "
+            "Selecting part(s) of %d discovered input(s) "
             "(num_parts=%d, part_idx=%s).",
             n_before,
             num_parts,
@@ -389,20 +404,16 @@ class BaseRunner:
 
         if num_parts == 1 and part_indices == [0]:
             self._logger.info(
-                "Part slicing is a no-op; keeping all %d pair(s).", n_before
+                "Part slicing is a no-op; keeping all %d input(s).", n_before
             )
-            return plans
+            return
 
-        sliced = {
-            key: slice_by_parts(values, num_parts, part_indices)
-            for key, values in plans.items()
-        }
+        self._input_files = slice_by_parts(self._input_files, num_parts, part_indices)
         self._logger.info(
-            "Kept %d of %d input/output pair(s) after part slicing.",
-            len(next(iter(sliced.values()), [])),
+            "Kept %d of %d input(s) after part slicing.",
+            len(self._input_files),
             n_before,
         )
-        return sliced
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover
         raise NotImplementedError("Subclasses must implement __call__")

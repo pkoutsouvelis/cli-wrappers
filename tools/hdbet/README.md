@@ -66,7 +66,7 @@ hdbet:
   num_processes_preprocessing: 4
   num_processes_segmentation_export: 8
   verbose: false
-  # num_parts: 4             # split planned pairs into contiguous jobs
+  # num_parts: 4             # split discovered inputs before planning
   # part_idx: 0              # int or list[int] in [0, num_parts)
 
 logging:
@@ -93,9 +93,9 @@ requires every path to lie under that root:
 input:
   from_file: /data/paths.txt
   root: /data/FOMO300k
-  # Skip resolve + under-root checks on the listed filepaths only (root is
-  # always resolved). Use when the list was already resolved offline:
-  # resolve_and_validate_explicit_filepaths: false
+  # Skip Path.resolve() on listed filepaths only (root is always resolved;
+  # under-root validation always runs). Use when the list is pre-resolved:
+  # resolve_explicit_filepaths: false
 ```
 
 Output behaviour:
@@ -106,11 +106,10 @@ alongside the inputs.
 - `files` / `from_file` without `root` write outputs to `output_dir` (flat)
 when set, else alongside each input.
 - `files` / `from_file` with `root` mirror like dataset mode (`root` is always
-resolved).
-- `resolve_and_validate_explicit_filepaths` (default `true`) applies only to
-the explicit filepaths: when `false`, they are not `resolve()`-d and are not
-checked against `root` (time saving for large pre-resolved lists). Paths
-should already match the resolved `root` form so mirroring works.
+resolved; paths must lie under it).
+- `resolve_explicit_filepaths` (default `true`) only controls whether listed
+filepaths are `resolve()`-d. When `false`, skip that for speed on large
+pre-resolved lists; paths must already match the resolved `root` form.
 
 
 

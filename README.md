@@ -58,7 +58,7 @@ Each tool's tests run independently:
 ```bash
 cd tools/hdbet   && pytest    # 36 tests
 cd tools/synthseg && pytest   # 27 tests
-cd core           && pytest   # 61 tests
+cd core           && pytest   # 64 tests
 ```
 
 Or run them together from the repo root:

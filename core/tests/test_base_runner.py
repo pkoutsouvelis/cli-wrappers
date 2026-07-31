@@ -104,31 +104,45 @@ def test_explicit_paths_reject_outside_root(tmp_path: Path):
         _DummyRunner(data={"files": [str(outside)], "root": str(root)})
 
 
-def test_skip_resolve_and_validate_allows_outside_root(tmp_path: Path, capsys):
-    """Flag False skips filepath resolve/validate; root is still resolved."""
+def test_skip_resolve_still_validates_root(tmp_path: Path, capsys):
+    """Flag False skips filepath resolve; under-root check still runs."""
     root = tmp_path / "ds"
     root.mkdir()
     p = root / "PT001" / "a.nii.gz"
     p.parent.mkdir(parents=True)
     list_file = tmp_path / "paths.txt"
-    list_file.write_text(f"{p}\n", encoding="utf-8")
+    # Write resolved form so relative_to(root.resolve()) succeeds without resolve().
+    list_file.write_text(f"{p.resolve()}\n", encoding="utf-8")
     out_dir = tmp_path / "out"
 
     runner = _DummyRunner(
         data={"from_file": str(list_file), "root": str(root)},
         output_dir=out_dir,
-        resolve_and_validate_explicit_filepaths=False,
+        resolve_explicit_filepaths=False,
     )
     assert runner._root == root.resolve()
-    assert runner._input_files == [Path(str(p)).expanduser()]
+    assert runner._input_files == [p.resolve()]
     plans = runner._plan_outputs(
         [OutputSpec("seg", "synthseg", save=True, required=True)]
     )
     assert plans["seg"] == [str(out_dir / "PT001" / "a_synthseg.nii.gz")]
     out = capsys.readouterr().out
     assert "resolve skipped" in out
-    assert "validation skipped" in out
-    assert "filepath resolve/validate skipped" not in out
+    assert "validation skipped" not in out
+
+
+def test_skip_resolve_rejects_outside_root(tmp_path: Path):
+    root = tmp_path / "ds"
+    root.mkdir()
+    outside = tmp_path / "other" / "a.nii.gz"
+    outside.parent.mkdir(parents=True)
+    list_file = tmp_path / "paths.txt"
+    list_file.write_text(f"{outside}\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="not under root"):
+        _DummyRunner(
+            data={"from_file": str(list_file), "root": str(root)},
+            resolve_explicit_filepaths=False,
+        )
 
 
 def test_from_file_rejects_patterns(tmp_path: Path):
@@ -207,30 +221,43 @@ def test_plan_outputs_does_not_skip_when_only_optional_exists(tmp_path: Path):
     assert plans["__inputs__"] == [str(p)]
 
 
-def test_slice_plan_filters_aligned_lists(tmp_path: Path, capsys):
-    files = [_touch(tmp_path / f"{name}.nii.gz") for name in ("a", "b", "c", "d")]
-    runner = _DummyRunner(data=files, output_dir=tmp_path / "out")
+def test_ensure_output_dirs_creates_parents(tmp_path: Path):
+    files = [_touch(tmp_path / "in" / f"{name}.nii.gz") for name in ("a", "b")]
+    out_dir = tmp_path / "out"
+    runner = _DummyRunner(data=files, output_dir=out_dir)
     plans = runner._plan_outputs(
         [OutputSpec("seg", "synthseg", save=True, required=True)]
     )
-    sliced = runner._slice_plan(plans, num_parts=4, part_idx=[0, 2])
+    runner._ensure_output_dirs(plans)
+    assert out_dir.is_dir()
+    for seg in plans["seg"]:
+        assert Path(seg).parent.is_dir()
 
-    assert sliced["__inputs__"] == [str(files[0]), str(files[2])]
-    assert [Path(p).name for p in sliced["seg"]] == [
+
+def test_slice_inputs_before_planning(tmp_path: Path, capsys):
+    files = [_touch(tmp_path / f"{name}.nii.gz") for name in ("a", "b", "c", "d")]
+    runner = _DummyRunner(data=files, output_dir=tmp_path / "out")
+    runner._slice_inputs(num_parts=4, part_idx=[0, 2])
+
+    assert runner._input_files == [files[0].resolve(), files[2].resolve()]
+    out = capsys.readouterr().out
+    assert "Selecting part(s) of 4 discovered input(s)" in out
+    assert "Kept 2 of 4 input(s) after part slicing" in out
+
+    plans = runner._plan_outputs(
+        [OutputSpec("seg", "synthseg", save=True, required=True)]
+    )
+    assert plans["__inputs__"] == [str(files[0].resolve()), str(files[2].resolve())]
+    assert [Path(p).name for p in plans["seg"]] == [
         "a_synthseg.nii.gz",
         "c_synthseg.nii.gz",
     ]
-    out = capsys.readouterr().out
-    assert "before part slicing" in out
-    assert "after part slicing" in out
 
 
-def test_slice_plan_rejects_unequal_lengths(tmp_path: Path):
+def test_slice_inputs_noop(tmp_path: Path, capsys):
     p = _touch(tmp_path / "scan.nii.gz")
     runner = _DummyRunner(data=p)
-    with pytest.raises(RuntimeError, match="unequal lengths"):
-        runner._slice_plan(
-            {"__inputs__": [str(p)], "seg": [str(p), str(p)]},
-            num_parts=1,
-            part_idx=0,
-        )
+    runner._slice_inputs(num_parts=1, part_idx=0)
+    assert runner._input_files == [p.resolve()]
+    out = capsys.readouterr().out
+    assert "Part slicing is a no-op" in out

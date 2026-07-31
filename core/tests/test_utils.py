@@ -9,6 +9,7 @@ import pytest
 from cliwrap_core.utils import (
     ensure_under_root,
     get_ext,
+    maximal_directories,
     normalize_part_indices,
     read_path_list,
     resolve_path,
@@ -37,6 +38,14 @@ def test_ensure_under_root_rejects_outside(tmp_path: Path):
     outside.write_bytes(b"")
     with pytest.raises(ValueError, match="not under root"):
         ensure_under_root([outside], root)
+
+
+def test_maximal_directories_keeps_leaves_only(tmp_path: Path):
+    a = tmp_path / "a"
+    a_b = tmp_path / "a" / "b"
+    c = tmp_path / "c"
+    kept = maximal_directories([a, a_b, c, a_b])
+    assert set(kept) == {a_b, c}
 
 
 def test_read_path_list(tmp_path: Path):

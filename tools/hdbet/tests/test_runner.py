@@ -219,7 +219,7 @@ def test_part_idx_list_selects_multiple_parts(tmp_path: Path, patch_hdbet, capsy
     assert str(files[2]) in out
     assert str(files[1]) not in out
     assert str(files[3]) not in out
-    assert "before part slicing" in out
+    assert "Selecting part(s) of 4 discovered input(s)" in out
     assert "after part slicing" in out
     assert patch_hdbet.calls == []
 

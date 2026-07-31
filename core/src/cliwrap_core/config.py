@@ -59,19 +59,18 @@ def parse_input(raw: dict[str, Any]) -> dict[str, Any]:
 
     Optional ``root`` may be set alongside ``files`` or ``from_file`` so
     outputs mirror each path's ``root``-relative parent under ``output_dir``.
-    ``root`` is always resolved. Every listed filepath must lie under that
-    root unless ``resolve_and_validate_explicit_filepaths`` is False
+    ``root`` is always resolved, and every listed filepath must lie under it
     (use ``dataset.root`` instead of a sibling ``root`` with ``dataset``).
 
-    Optional ``resolve_and_validate_explicit_filepaths`` (default True) applies
-    only to the explicit filepaths themselves (``files`` / ``from_file``): when
-    True they are ``resolve()``-d and checked against ``root``; when False,
-    only ``~`` is expanded — intended for large lists that were already
-    resolved offline (time saving). Does not affect ``root`` resolution.
+    Optional ``resolve_explicit_filepaths`` (default True) applies only to the
+    explicit filepaths (``files`` / ``from_file``): when True they are
+    ``resolve()``-d; when False, only ``~`` is expanded — for large lists
+    already resolved offline (time saving). Under-root validation always runs;
+    with False, paths must already match the resolved ``root`` form.
     Harmless no-op if set alongside ``dataset``.
 
     Returns a mapping with ``data`` (runner ``data`` argument) and, for
-    ``files`` / ``from_file``, ``resolve_and_validate_explicit_filepaths``.
+    ``files`` / ``from_file``, ``resolve_explicit_filepaths``.
     """
     if not isinstance(raw, dict):
         raise ValueError(f"input must be a mapping, got {type(raw).__name__}")
@@ -84,7 +83,7 @@ def parse_input(raw: dict[str, Any]) -> dict[str, Any]:
             "from_file",
             "dataset",
             "root",
-            "resolve_and_validate_explicit_filepaths",
+            "resolve_explicit_filepaths",
         },
     )
 
@@ -101,10 +100,10 @@ def parse_input(raw: dict[str, Any]) -> dict[str, Any]:
     if root is not None and not isinstance(root, (str, Path)):
         raise ValueError(f"input.root must be a path string, got {type(root).__name__}")
 
-    resolve_flag = raw.get("resolve_and_validate_explicit_filepaths", True)
+    resolve_flag = raw.get("resolve_explicit_filepaths", True)
     if not isinstance(resolve_flag, bool):
         raise ValueError(
-            "input.resolve_and_validate_explicit_filepaths must be a boolean, "
+            "input.resolve_explicit_filepaths must be a boolean, "
             f"got {type(resolve_flag).__name__}"
         )
 
@@ -117,7 +116,7 @@ def parse_input(raw: dict[str, Any]) -> dict[str, Any]:
         return {"data": raw["dataset"]}
 
     out: dict[str, Any] = {
-        "resolve_and_validate_explicit_filepaths": resolve_flag,
+        "resolve_explicit_filepaths": resolve_flag,
     }
 
     if has_files:

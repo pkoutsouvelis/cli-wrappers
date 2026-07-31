@@ -73,7 +73,7 @@ class SynthSegRunner(BaseRunner):
         overwrite: bool = True,
         log_dir: Path | str | None = None,
         log_level: LogLevel = "INFO",
-        resolve_and_validate_explicit_filepaths: bool = True,
+        resolve_explicit_filepaths: bool = True,
     ) -> None:
         for name, val in [
             ("save_segmentation", save_segmentation),
@@ -132,7 +132,7 @@ class SynthSegRunner(BaseRunner):
             overwrite=overwrite,
             log_dir=log_dir,
             log_level=log_level,
-            resolve_and_validate_explicit_filepaths=resolve_and_validate_explicit_filepaths,
+            resolve_explicit_filepaths=resolve_explicit_filepaths,
             logger_name="synthseg_wrapper",
             logger_label="SYNTHSEG WRAPPER",
             log_file_prefix="synthseg_run",
@@ -294,11 +294,16 @@ class SynthSegRunner(BaseRunner):
             crop: Optional list of patch sizes (``--crop X Y Z``).
             v1: Use SynthSeg 1.0 instead of 2.0 (``--v1``).
             dry_run: Plan inputs/outputs and log them without running SynthSeg.
-            num_parts: Split planned pairs into this many contiguous jobs.
-                Defaults to ``1`` (no split).
+            num_parts: Split discovered inputs into this many contiguous jobs
+                *before* planning outputs. Defaults to ``1`` (no split).
             part_idx: Which part(s) to run, as an ``int`` or ``list[int]`` in
                 ``[0, num_parts)``. Defaults to ``0``.
         """
+        self._slice_inputs(num_parts=num_parts, part_idx=part_idx)
+        if not self._input_files:
+            self._logger.info("No inputs to process after part slicing.")
+            return
+
         plans = self._plan()
         if not plans["__inputs__"]:
             self._logger.info("No inputs to process.")
@@ -309,11 +314,6 @@ class SynthSegRunner(BaseRunner):
                 "Skipping %d files due to existing outputs and `overwrite=False`.",
                 len(self._input_files) - len(plans["__inputs__"]),
             )
-
-        plans = self._slice_plan(plans, num_parts=num_parts, part_idx=part_idx)
-        if not plans["__inputs__"]:
-            self._logger.info("No inputs to process after part slicing.")
-            return
 
         if dry_run:
             self._log_plan(plans)

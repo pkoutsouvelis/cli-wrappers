@@ -19,12 +19,12 @@ input:
   #   - /data/sub-02/anat/sub-02_T1w.nii.gz
 
   # Alternative: text file with one filepath per line (# comments / blanks ok).
-  # Optional root mirrors layout under output_dir (root is always resolved).
-  # Set resolve_and_validate_explicit_filepaths: false to skip resolve +
-  # under-root checks on the listed filepaths when the list is pre-resolved.
+  # Optional root mirrors layout under output_dir (root is always resolved;
+  # paths must lie under it). Set resolve_explicit_filepaths: false to skip
+  # Path.resolve() on listed filepaths when the list is pre-resolved.
   # from_file: /data/paths.txt
   # root: /data/FOMO300k
-  # resolve_and_validate_explicit_filepaths: false
+  # resolve_explicit_filepaths: false
 
 output:
   output_dir: /data/derivatives/synthseg
@@ -51,7 +51,7 @@ synthseg:
   threads: 4                             # --threads N
   crop: null                             # --crop X [Y Z]
   v1: false                              # --v1:     use SynthSeg 1.0
-  # Split planned pairs into contiguous jobs.
+  # Split discovered inputs into contiguous jobs before planning.
   # num_parts: 4
   # part_idx: 0                          # or e.g. [0, 2]
 

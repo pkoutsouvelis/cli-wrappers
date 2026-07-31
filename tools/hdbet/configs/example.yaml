@@ -25,12 +25,12 @@ input:
   #   - /data/sub-02/anat/sub-02_T1w.nii.gz
 
   # Alternative: text file with one filepath per line (# comments / blanks ok).
-  # Optional root mirrors layout under output_dir (root is always resolved).
-  # Set resolve_and_validate_explicit_filepaths: false to skip resolve +
-  # under-root checks on the listed filepaths when the list is pre-resolved.
+  # Optional root mirrors layout under output_dir (root is always resolved;
+  # paths must lie under it). Set resolve_explicit_filepaths: false to skip
+  # Path.resolve() on listed filepaths when the list is pre-resolved.
   # from_file: /data/paths.txt
   # root: /data/FOMO300k
-  # resolve_and_validate_explicit_filepaths: false
+  # resolve_explicit_filepaths: false
 
 output:
   output_dir: /data/derivatives/hd-bet
@@ -46,7 +46,8 @@ hdbet:
   num_processes_preprocessing: 4
   num_processes_segmentation_export: 8
   verbose: false
-  # Split planned pairs into contiguous jobs (nnU-Net part_id stays 0/1).
+  # Split discovered inputs into contiguous jobs before planning
+  # (nnU-Net part_id stays 0/1).
   # num_parts: 4
   # part_idx: 0                 # or e.g. [0, 2]
 
