@@ -29,7 +29,6 @@ from cliwrap_core.utils import (
     coerce_path,
     ensure_under_root,
     get_ext,
-    maximal_directories,
     normalize_part_indices,
     read_path_list,
     resolve_path,
@@ -293,42 +292,36 @@ class BaseRunner:
         """Create parent directories for planned outputs.
 
         Separate from :meth:`_plan_outputs` so dry-runs can skip mkdir.
-        Deduplicates to maximal (deepest) directories and creates them
-        concurrently (sequential ``mkdir`` is slow on network filesystems).
+        Creates unique parents concurrently (sequential ``mkdir`` is slow on
+        network filesystems).
         """
-        parents: set[Path] = set()
-        for key, paths in plans.items():
-            if key == "__inputs__":
-                continue
-            for path in paths:
-                parents.add(Path(path).parent)
-
-        to_create = maximal_directories(parents)
+        parents = {
+            Path(path).parent
+            for key, paths in plans.items()
+            if key != "__inputs__"
+            for path in paths
+        }
         self._logger.info(
-            "Ensuring %d output director%s (%d unique parent path%s)...",
-            len(to_create),
-            "y" if len(to_create) == 1 else "ies",
+            "Ensuring %d unique output director%s...",
             len(parents),
-            "" if len(parents) == 1 else "s",
+            "y" if len(parents) == 1 else "ies",
         )
-        if not to_create:
+        if not parents:
             return
 
-        n_workers = max(1, min(workers, len(to_create)))
+        n_workers = max(1, min(workers, len(parents)))
 
         def _mkdir(path: Path) -> None:
             path.mkdir(parents=True, exist_ok=True)
 
         done = 0
         with ThreadPoolExecutor(max_workers=n_workers) as pool:
-            futures = [pool.submit(_mkdir, p) for p in to_create]
+            futures = [pool.submit(_mkdir, p) for p in parents]
             for fut in as_completed(futures):
                 fut.result()
                 done += 1
-                if done == len(to_create) or done % 1000 == 0:
-                    self._logger.info(
-                        "Output dir progress: %d/%d.", done, len(to_create)
-                    )
+                if done == len(parents) or done % 1000 == 0:
+                    self._logger.info("Output dir progress: %d/%d.", done, len(parents))
 
     def _plan_outputs(self, specs: list[OutputSpec]) -> dict[str, list[str]]:
         """Compute parallel input/output path lists.
@@ -370,7 +363,7 @@ class BaseRunner:
             for spec in specs:
                 plans[spec.name].append(str(candidate_outputs[spec.name]))
 
-            if i == n or i % 10000 == 0:
+            if i == n or i % 1000 == 0:
                 self._logger.info(
                     "Planning progress: %d/%d inputs (kept %d).",
                     i,
