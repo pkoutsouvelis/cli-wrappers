@@ -9,6 +9,7 @@ import pytest
 from cliwrap_core.utils import (
     get_ext,
     normalize_part_indices,
+    read_path_list,
     resolve_path,
     slice_by_parts,
 )
@@ -17,6 +18,29 @@ from cliwrap_core.utils import (
 def test_resolve_path_expands_and_resolves(tmp_path: Path):
     p = resolve_path(tmp_path / "x")
     assert p.is_absolute()
+
+
+def test_read_path_list(tmp_path: Path):
+    a = tmp_path / "a.nii.gz"
+    b = tmp_path / "b.nii.gz"
+    list_file = tmp_path / "paths.txt"
+    list_file.write_text(
+        f"# comment\n\n{a}\n  {b}  \n# trailing\n",
+        encoding="utf-8",
+    )
+    assert read_path_list(list_file) == [a.resolve(), b.resolve()]
+
+
+def test_read_path_list_empty_raises(tmp_path: Path):
+    list_file = tmp_path / "empty.txt"
+    list_file.write_text("# only comments\n\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="empty"):
+        read_path_list(list_file)
+
+
+def test_read_path_list_missing_raises(tmp_path: Path):
+    with pytest.raises(FileNotFoundError):
+        read_path_list(tmp_path / "missing.txt")
 
 
 def test_get_ext_double_extension():

@@ -48,6 +48,29 @@ def test_dataset_requires_root_and_patterns(tmp_path: Path):
         _DummyRunner(data={"root": str(tmp_path)})
 
 
+def test_from_file_loads_paths(tmp_path: Path, capsys):
+    a = _touch(tmp_path / "a.nii.gz")
+    b = _touch(tmp_path / "b.nii.gz")
+    list_file = tmp_path / "paths.txt"
+    list_file.write_text(f"{a}\n# skip\n{b}\n", encoding="utf-8")
+
+    runner = _DummyRunner(data={"from_file": str(list_file)})
+    assert runner._input_files == [a.resolve(), b.resolve()]
+    assert runner._root is None
+    out = capsys.readouterr().out
+    assert "Reading paths from:" in out
+    assert "Loaded 2 path(s)" in out
+
+
+def test_from_file_rejects_mix_with_dataset_keys(tmp_path: Path):
+    list_file = tmp_path / "paths.txt"
+    list_file.write_text(f"{tmp_path / 'a.nii.gz'}\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="cannot mix"):
+        _DummyRunner(
+            data={"from_file": str(list_file), "root": str(tmp_path), "patterns": "*"}
+        )
+
+
 def test_plan_outputs_single_file(tmp_path: Path):
     p = _touch(tmp_path / "scan.nii.gz")
     runner = _DummyRunner(data=p)

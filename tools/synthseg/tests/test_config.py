@@ -45,6 +45,19 @@ def test_minimal_dataset_config(tmp_path: Path):
     assert cfg["synthseg_call"] == {}
 
 
+def test_from_file_mode_config(tmp_path: Path):
+    cfg = load_config(
+        _write(
+            tmp_path / "cfg.yaml",
+            {
+                "input": {"from_file": "/data/paths.txt"},
+                "synthseg": {"synthseg_home": "/opt/Photo-SynthSeg"},
+            },
+        )
+    )
+    assert cfg["input"]["data"] == {"from_file": "/data/paths.txt"}
+
+
 def test_missing_synthseg_home(tmp_path: Path):
     with pytest.raises(ValueError, match="synthseg.synthseg_home is required"):
         load_config(

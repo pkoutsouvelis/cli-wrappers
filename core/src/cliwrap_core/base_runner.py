@@ -2,9 +2,9 @@
 
 :class:`BaseRunner` absorbs the parts every tool wrapper repeats:
 
-- Input resolution: a single file, a list of files, or a dataset mapping with
-  ``root`` + ``patterns`` (+ optional ``levels`` / ``filters``) handed to
-  ``nifti-finder``.
+- Input resolution: a single file, a list of files, a text file listing
+  paths (one per line), or a dataset mapping with ``root`` + ``patterns``
+  (+ optional ``levels`` / ``filters``) handed to ``nifti-finder``.
 - Output planning: given a list of :class:`OutputSpec` items, build the parallel
   input/output path lists (mirrored under ``output_dir`` when in dataset mode)
   with overwrite semantics.
@@ -27,6 +27,7 @@ from cliwrap_core.logging_utils import LogLevel, setup_logger
 from cliwrap_core.utils import (
     get_ext,
     normalize_part_indices,
+    read_path_list,
     resolve_path,
     slice_by_parts,
 )
@@ -63,14 +64,16 @@ class BaseRunner:
     """Shared scaffolding for tool-specific runners.
 
     Args:
-        data: Input spec: a single Path/str, a list of Paths/strs, or a dataset
+        data: Input spec: a single Path/str, a list of Paths/strs, a path-list
+            mapping ``{"from_file": "/path/to/paths.txt"}``, or a dataset
             mapping ``{"root": ..., "patterns": ..., "levels": ..., "filters": ...}``.
             ``levels`` and ``filters`` are optional; omit ``levels`` for a flat
-            recursive scan.
+            recursive scan. ``from_file`` is a text file with one filepath per
+            line (blank lines and ``#`` comments ignored).
         output_dir: Root output directory. When ``None`` and ``data`` is a
-            single file or a list, outputs land next to each input; when
-            ``None`` and ``data`` is a dataset mapping, outputs land next to
-            inputs (i.e., under the dataset root).
+            single file, list, or from_file, outputs land next to each input;
+            when ``None`` and ``data`` is a dataset mapping, outputs land next
+            to inputs (i.e., under the dataset root).
         overwrite: Whether to re-process inputs whose required outputs exist.
         log_dir: Optional directory for a timestamped run log.
         log_level: Minimum log level.
@@ -142,6 +145,23 @@ class BaseRunner:
             return None, [resolve_path(p) for p in data]
 
         if isinstance(data, dict):
+            if "from_file" in data:
+                if "root" in data or "patterns" in data:
+                    raise ValueError(
+                        "data cannot mix 'from_file' with dataset keys "
+                        "('root', 'patterns')"
+                    )
+                from_file = data["from_file"]
+                if not isinstance(from_file, (Path, str)):
+                    raise ValueError(
+                        "`from_file` must be a Path or str, "
+                        f"got {type(from_file).__name__}"
+                    )
+                self._logger.info("Reading paths from: %s", from_file)
+                files = read_path_list(from_file)
+                self._logger.info("Loaded %d path(s) from %s.", len(files), from_file)
+                return None, files
+
             self._logger.info("Instantiating data explorer...")
 
             if "root" not in data:

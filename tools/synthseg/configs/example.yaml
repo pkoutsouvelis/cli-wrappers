@@ -1,9 +1,9 @@
 # synthseg-wrapper example config
 #
-# Two input modes are supported. Use exactly one of `input.files` or
-# `input.dataset`. The dataset mode uses nifti-finder's AllPurposeFileExplorer
-# under the hood; the `filters` block accepts the same nested ComposeFilter
-# shape as hd-bet-wrapper.
+# Three input modes are supported. Use exactly one of `input.files`,
+# `input.from_file`, or `input.dataset`. The dataset mode uses nifti-finder's
+# FileFinder under the hood; the `filters` block accepts the same nested
+# ComposeFilter shape as hd-bet-wrapper.
 
 input:
   dataset:
@@ -13,10 +13,13 @@ input:
       name: ExcludeFileSuffix
       kwargs: { suffix: "_synthseg" }
 
-  # Alternative: explicit file list (mutually exclusive with `dataset`).
+  # Alternative: explicit file list (mutually exclusive with the others).
   # files:
   #   - /data/sub-01/anat/sub-01_T1w.nii.gz
   #   - /data/sub-02/anat/sub-02_T1w.nii.gz
+
+  # Alternative: text file with one filepath per line (# comments / blanks ok).
+  # from_file: /data/paths.txt
 
 output:
   output_dir: /data/derivatives/synthseg

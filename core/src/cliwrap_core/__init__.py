@@ -23,6 +23,7 @@ from cliwrap_core.logging_utils import LogLevel, get_logger, setup_logger
 from cliwrap_core.utils import (
     get_ext,
     normalize_part_indices,
+    read_path_list,
     resolve_path,
     slice_by_parts,
 )
@@ -38,6 +39,7 @@ __all__ = [
     "normalize_part_indices",
     "parse_input",
     "parse_logging",
+    "read_path_list",
     "reject_unknown_keys",
     "require_keys",
     "resolve_path",

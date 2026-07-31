@@ -4,7 +4,7 @@ Tool-level config modules build on these primitives:
 
 - :func:`load_yaml` reads and minimally validates the top-level mapping.
 - :func:`require_keys` / :func:`reject_unknown_keys` are small key-set guards.
-- :func:`parse_input` enforces the shared ``input.{files,dataset}`` shape.
+- :func:`parse_input` enforces the shared ``input.{files,from_file,dataset}`` shape.
 - :func:`parse_logging` enforces the shared ``logging`` section.
 
 Each tool implements its own ``parse_<tool>`` and ``parse_output`` (where the
@@ -54,20 +54,37 @@ def parse_input(raw: dict[str, Any]) -> dict[str, Any]:
 
     Accepts exactly one of:
       - ``files: [...]``
+      - ``from_file: /path/to/paths.txt`` (one filepath per line)
       - ``dataset: {root, patterns, levels?, filters?}``
 
-    Returns ``{"data": <files-or-dataset-payload>}`` which downstream runners
-    take as their ``data`` constructor argument.
+    Returns ``{"data": <payload>}`` which downstream runners take as their
+    ``data`` constructor argument. For ``from_file``, the payload is
+    ``{"from_file": <path>}`` so :class:`~cliwrap_core.BaseRunner` can load
+    the paths (same semantics as an explicit ``files`` list).
     """
     if not isinstance(raw, dict):
         raise ValueError(f"input must be a mapping, got {type(raw).__name__}")
 
     has_files = "files" in raw and raw["files"] is not None
+    has_from_file = "from_file" in raw and raw["from_file"] is not None
     has_dataset = "dataset" in raw and raw["dataset"] is not None
-    if has_files == has_dataset:
-        raise ValueError("input: specify exactly one of 'files' or 'dataset'")
+    n_modes = sum((has_files, has_from_file, has_dataset))
+    if n_modes != 1:
+        raise ValueError(
+            "input: specify exactly one of 'files', 'from_file', or 'dataset'"
+        )
 
-    return {"data": raw["files"] if has_files else raw["dataset"]}
+    if has_files:
+        return {"data": raw["files"]}
+    if has_from_file:
+        from_file = raw["from_file"]
+        if not isinstance(from_file, (str, Path)):
+            raise ValueError(
+                "input.from_file must be a path string, "
+                f"got {type(from_file).__name__}"
+            )
+        return {"data": {"from_file": from_file}}
+    return {"data": raw["dataset"]}
 
 
 def parse_logging(raw: dict[str, Any] | None) -> dict[str, Any]:

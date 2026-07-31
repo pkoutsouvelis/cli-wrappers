@@ -48,6 +48,16 @@ def test_files_mode_config(tmp_path: Path):
     assert cfg["input"]["data"] == ["/a.nii.gz", "/b.nii.gz"]
 
 
+def test_from_file_mode_config(tmp_path: Path):
+    cfg = load_config(
+        _write(
+            tmp_path / "cfg.yaml",
+            {"input": {"from_file": "/data/paths.txt"}},
+        )
+    )
+    assert cfg["input"]["data"] == {"from_file": "/data/paths.txt"}
+
+
 def test_input_mutual_exclusion_both(tmp_path: Path):
     with pytest.raises(ValueError, match="exactly one"):
         load_config(
@@ -57,6 +67,21 @@ def test_input_mutual_exclusion_both(tmp_path: Path):
                     "input": {
                         "files": ["/a.nii.gz"],
                         "dataset": {"root": "/r", "patterns": "*.nii.gz"},
+                    }
+                },
+            )
+        )
+
+
+def test_input_mutual_exclusion_from_file_and_files(tmp_path: Path):
+    with pytest.raises(ValueError, match="exactly one"):
+        load_config(
+            _write(
+                tmp_path / "cfg.yaml",
+                {
+                    "input": {
+                        "files": ["/a.nii.gz"],
+                        "from_file": "/data/paths.txt",
                     }
                 },
             )

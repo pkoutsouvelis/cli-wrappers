@@ -13,6 +13,31 @@ def resolve_path(path: Path | str) -> Path:
     return Path(path).expanduser().resolve()
 
 
+def read_path_list(path: Path | str) -> list[Path]:
+    """Read absolute/relative filepaths from a text file (one path per line).
+
+    Blank lines and lines whose first non-whitespace character is ``#`` are
+    ignored. Each remaining line is stripped and passed through
+    :func:`resolve_path`.
+    """
+    list_path = resolve_path(path)
+    if not list_path.is_file():
+        raise FileNotFoundError(f"Path list file not found: {list_path}")
+
+    paths: list[Path] = []
+    with list_path.open("r", encoding="utf-8") as fh:
+        for raw in fh:
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            paths.append(resolve_path(line))
+
+    if not paths:
+        raise ValueError(f"Path list file is empty (no paths): {list_path}")
+
+    return paths
+
+
 def get_ext(path: Path | str) -> str:
     """Return the full multi-part file extension with leading dots.
 
