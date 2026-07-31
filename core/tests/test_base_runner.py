@@ -104,7 +104,7 @@ def test_explicit_paths_reject_outside_root(tmp_path: Path):
         _DummyRunner(data={"files": [str(outside)], "root": str(root)})
 
 
-def test_skip_resolve_and_validate_allows_outside_root(tmp_path: Path):
+def test_skip_resolve_and_validate_allows_outside_root(tmp_path: Path, capsys):
     """Flag False skips filepath resolve/validate; root is still resolved."""
     root = tmp_path / "ds"
     root.mkdir()
@@ -125,6 +125,10 @@ def test_skip_resolve_and_validate_allows_outside_root(tmp_path: Path):
         [OutputSpec("seg", "synthseg", save=True, required=True)]
     )
     assert plans["seg"] == [str(out_dir / "PT001" / "a_synthseg.nii.gz")]
+    out = capsys.readouterr().out
+    assert "resolve skipped" in out
+    assert "validation skipped" in out
+    assert "filepath resolve/validate skipped" not in out
 
 
 def test_from_file_rejects_patterns(tmp_path: Path):

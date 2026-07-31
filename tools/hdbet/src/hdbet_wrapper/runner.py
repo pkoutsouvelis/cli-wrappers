@@ -208,6 +208,8 @@ class HDBETRunner(BaseRunner):
                 )
             return
 
+        self._ensure_output_dirs(plans)
+
         self._logger.info("Loading nnU-Net predictor...")
         predictor = self._get_predictor(device=device, use_tta=use_tta, verbose=verbose)
         self._logger.info("nnU-Net predictor loaded successfully.")

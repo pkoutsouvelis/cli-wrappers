@@ -180,9 +180,7 @@ class SynthSegRunner(BaseRunner):
     def _csv_output_path(self, p: Path, suffix: str) -> Path:
         """Per-input CSV path for batch-mode ``--vol`` / ``--qc`` list files."""
         stem, _ = self._stem_and_ext(p)
-        out = self._out_parent_for(p) / f"{stem}_{suffix}.csv"
-        out.parent.mkdir(parents=True, exist_ok=True)
-        return out
+        return self._out_parent_for(p) / f"{stem}_{suffix}.csv"
 
     def _write_list(self, parent: Path, filename: str, items: list[str]) -> Path:
         p = parent / filename
@@ -320,6 +318,8 @@ class SynthSegRunner(BaseRunner):
         if dry_run:
             self._log_plan(plans)
             return
+
+        self._ensure_output_dirs(plans)
 
         with tempfile.TemporaryDirectory(prefix="synthseg_lists_") as td:
             cmd = self._build_command(

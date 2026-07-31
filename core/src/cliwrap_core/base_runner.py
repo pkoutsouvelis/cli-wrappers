@@ -236,7 +236,12 @@ class BaseRunner:
                 )
             self._logger.info("Reading paths from: %s", from_file)
             files = read_path_list(from_file, resolve_paths=do_resolve)
-            self._logger.info("Loaded %d path(s) from %s.", len(files), from_file)
+            self._logger.info(
+                "Loaded %d path(s) from %s%s.",
+                len(files),
+                from_file,
+                "" if do_resolve else "; resolve skipped",
+            )
         else:
             raw_files = data["files"]
             if not isinstance(raw_files, list):
@@ -263,7 +268,7 @@ class BaseRunner:
             "Using root %s for output mirroring (%d path(s)%s).",
             root,
             len(files),
-            "" if do_resolve else "; filepath resolve/validate skipped",
+            "" if do_resolve else "; validation skipped",
         )
         return root, files
 
@@ -284,6 +289,22 @@ class BaseRunner:
         sep = "_" if suffix else ""
         return self._out_parent_for(p) / f"{stem}{sep}{suffix}{ext}"
 
+    def _ensure_output_dirs(self, plans: dict[str, list[str]]) -> None:
+        """Create unique parent directories for planned outputs (once each)."""
+        parents: set[Path] = set()
+        for key, paths in plans.items():
+            if key == "__inputs__":
+                continue
+            for path in paths:
+                parents.add(Path(path).parent)
+        self._logger.info(
+            "Ensuring %d unique output director%s...",
+            len(parents),
+            "y" if len(parents) == 1 else "ies",
+        )
+        for parent in parents:
+            parent.mkdir(parents=True, exist_ok=True)
+
     def _plan_outputs(self, specs: list[OutputSpec]) -> dict[str, list[str]]:
         """Compute parallel input/output path lists.
 
@@ -291,6 +312,9 @@ class BaseRunner:
         per :class:`OutputSpec`. Files whose required outputs already exist are
         skipped when ``overwrite`` is False; the skip is enforced consistently
         across all required outputs.
+
+        Does not create directories; call :meth:`_ensure_output_dirs` on the
+        (preferably part-sliced) plan before writing outputs.
 
         Returns:
             A mapping with:
@@ -303,10 +327,10 @@ class BaseRunner:
         for spec in specs:
             plans[spec.name] = []
 
-        for p in self._input_files:
-            out_parent = self._out_parent_for(p)
-            out_parent.mkdir(parents=True, exist_ok=True)
+        n = len(self._input_files)
+        self._logger.info("Planning output paths for %d input(s)...", n)
 
+        for i, p in enumerate(self._input_files, start=1):
             candidate_outputs = {
                 spec.name: self._output_path(p, spec.suffix) for spec in specs
             }
@@ -320,6 +344,14 @@ class BaseRunner:
             plans["__inputs__"].append(str(p))
             for spec in specs:
                 plans[spec.name].append(str(candidate_outputs[spec.name]))
+
+            if i == n or i % 10000 == 0:
+                self._logger.info(
+                    "Planning progress: %d/%d inputs (kept %d).",
+                    i,
+                    n,
+                    len(plans["__inputs__"]),
+                )
 
         return plans
 
