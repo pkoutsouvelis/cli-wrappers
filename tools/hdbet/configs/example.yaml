@@ -25,9 +25,11 @@ input:
   #   - /data/sub-02/anat/sub-02_T1w.nii.gz
 
   # Alternative: text file with one filepath per line (# comments / blanks ok).
-  # Optional root mirrors layout under output_dir (paths must lie under root).
+  # Optional root mirrors layout under output_dir (paths must lie under root
+  # unless resolve_and_validate_explicit_filepaths is false).
   # from_file: /data/paths.txt
   # root: /data/FOMO300k
+  # resolve_and_validate_explicit_filepaths: false
 
 output:
   output_dir: /data/derivatives/hd-bet

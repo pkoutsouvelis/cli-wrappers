@@ -13,6 +13,12 @@ def resolve_path(path: Path | str) -> Path:
     return Path(path).expanduser().resolve()
 
 
+def coerce_path(path: Path | str, *, resolve: bool = True) -> Path:
+    """Expand ``~``; optionally ``resolve()`` (filesystem realpath)."""
+    p = Path(path).expanduser()
+    return p.resolve() if resolve else p
+
+
 def ensure_under_root(paths: Sequence[Path], root: Path) -> None:
     """Raise ``ValueError`` if any path is not under ``root``.
 
@@ -26,12 +32,19 @@ def ensure_under_root(paths: Sequence[Path], root: Path) -> None:
             raise ValueError(f"Input path {path} is not under root {root}") from e
 
 
-def read_path_list(path: Path | str) -> list[Path]:
+def read_path_list(path: Path | str, *, resolve_paths: bool = True) -> list[Path]:
     """Read absolute/relative filepaths from a text file (one path per line).
 
     Blank lines and lines whose first non-whitespace character is ``#`` are
-    ignored. Each remaining line is stripped and passed through
-    :func:`resolve_path`.
+    ignored. Each remaining line is stripped and coerced via
+    :func:`coerce_path`. The list file itself is always resolved so it can be
+    opened reliably.
+
+    Args:
+        path: Path to the text file.
+        resolve_paths: If True (default), ``resolve()`` each listed filepath.
+            Set False to only expand ``~`` (much faster on large lists / slow
+            filesystems when paths are already absolute).
     """
     list_path = resolve_path(path)
     if not list_path.is_file():
@@ -43,7 +56,7 @@ def read_path_list(path: Path | str) -> list[Path]:
             line = raw.strip()
             if not line or line.startswith("#"):
                 continue
-            paths.append(resolve_path(line))
+            paths.append(coerce_path(line, resolve=resolve_paths))
 
     if not paths:
         raise ValueError(f"Path list file is empty (no paths): {list_path}")

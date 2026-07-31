@@ -25,6 +25,7 @@ from typing import Any, Sequence, TypeAlias
 from cliwrap_core.explorer_factory import get_data_explorer
 from cliwrap_core.logging_utils import LogLevel, setup_logger
 from cliwrap_core.utils import (
+    coerce_path,
     ensure_under_root,
     get_ext,
     normalize_part_indices,
@@ -73,7 +74,8 @@ class BaseRunner:
             recursive scan. ``from_file`` is a text file with one filepath per
             line (blank lines and ``#`` comments ignored). Optional ``root`` on
             ``files`` / ``from_file`` mirrors each path's root-relative parent
-            under ``output_dir`` and requires every path to lie under ``root``.
+            under ``output_dir`` and requires every path to lie under ``root``
+            when ``resolve_and_validate_explicit_filepaths`` is True.
         output_dir: Root output directory. When ``None`` and ``data`` is a
             single file, list, or from_file without ``root``, outputs land next
             to each input; when ``None`` and a ``root`` is set (explicit or
@@ -81,6 +83,12 @@ class BaseRunner:
         overwrite: Whether to re-process inputs whose required outputs exist.
         log_dir: Optional directory for a timestamped run log.
         log_level: Minimum log level.
+        resolve_and_validate_explicit_filepaths: If True (default), explicit
+            paths from ``files`` / ``from_file`` / a bare list are passed through
+            ``Path.resolve()``, and an optional ``root`` is checked with
+            :func:`~cliwrap_core.utils.ensure_under_root`. Set False to only
+            expand ``~`` (faster for large absolute path lists on slow
+            filesystems). Has no effect on dataset discovery.
         logger_name: Python logger name (e.g. ``"hdbet_wrapper"``).
         logger_label: Bracketed log prefix (e.g. ``"HD-BET WRAPPER"``).
         log_file_prefix: Filename stem for the per-run log file.
@@ -93,6 +101,7 @@ class BaseRunner:
         overwrite: bool = True,
         log_dir: Path | str | None = None,
         log_level: LogLevel = "INFO",
+        resolve_and_validate_explicit_filepaths: bool = True,
         *,
         logger_name: str,
         logger_label: str,
@@ -113,6 +122,13 @@ class BaseRunner:
                 f"overwrite must be a boolean, got {type(overwrite).__name__}"
             )
         self._overwrite = overwrite
+
+        if not isinstance(resolve_and_validate_explicit_filepaths, bool):
+            raise ValueError(
+                "resolve_and_validate_explicit_filepaths must be a boolean, "
+                f"got {type(resolve_and_validate_explicit_filepaths).__name__}"
+            )
+        self._resolve_and_validate = resolve_and_validate_explicit_filepaths
 
         if log_dir is not None and not isinstance(log_dir, (Path, str)):
             raise ValueError(
@@ -139,14 +155,17 @@ class BaseRunner:
         else:
             self._output_dir = None
 
+    def _coerce(self, path: Path | str) -> Path:
+        return coerce_path(path, resolve=self._resolve_and_validate)
+
     def _resolve_data(self, data: InputData) -> tuple[Path | None, list[Path]]:
         if isinstance(data, (Path, str)):
-            return None, [resolve_path(data)]
+            return None, [self._coerce(data)]
 
         if isinstance(data, list):
             if any(not isinstance(p, (Path, str)) for p in data):
                 raise ValueError("Input list must contain only Path or str objects")
-            return None, [resolve_path(p) for p in data]
+            return None, [self._coerce(p) for p in data]
 
         if isinstance(data, dict):
             if "from_file" in data or "files" in data:
@@ -204,6 +223,7 @@ class BaseRunner:
                 f"['files', 'from_file', 'root']; got unexpected keys {sorted(unknown)}"
             )
 
+        do_resolve = self._resolve_and_validate
         if "from_file" in data:
             from_file = data["from_file"]
             if not isinstance(from_file, (Path, str)):
@@ -212,7 +232,7 @@ class BaseRunner:
                     f"got {type(from_file).__name__}"
                 )
             self._logger.info("Reading paths from: %s", from_file)
-            files = read_path_list(from_file)
+            files = read_path_list(from_file, resolve_paths=do_resolve)
             self._logger.info("Loaded %d path(s) from %s.", len(files), from_file)
         else:
             raw_files = data["files"]
@@ -223,7 +243,7 @@ class BaseRunner:
                 )
             if any(not isinstance(p, (Path, str)) for p in raw_files):
                 raise ValueError("Input list must contain only Path or str objects")
-            files = [resolve_path(p) for p in raw_files]
+            files = [self._coerce(p) for p in raw_files]
 
         root_raw = data.get("root")
         if root_raw is None:
@@ -233,10 +253,14 @@ class BaseRunner:
             raise ValueError(
                 f"`root` must be a Path or str object, got {type(root_raw).__name__}"
             )
-        root = resolve_path(root_raw)
-        ensure_under_root(files, root)
+        root = coerce_path(root_raw, resolve=do_resolve)
+        if do_resolve:
+            ensure_under_root(files, root)
         self._logger.info(
-            "Using root %s for output mirroring (%d path(s)).", root, len(files)
+            "Using root %s for output mirroring (%d path(s)%s).",
+            root,
+            len(files),
+            "" if do_resolve else "; resolve/validate skipped",
         )
         return root, files
 

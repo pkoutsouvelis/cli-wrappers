@@ -53,6 +53,7 @@ def test_from_file_mode_config(tmp_path: Path):
                 "input": {
                     "from_file": "/data/paths.txt",
                     "root": "/data/FOMO300k",
+                    "resolve_and_validate_explicit_filepaths": False,
                 },
                 "synthseg": {"synthseg_home": "/opt/Photo-SynthSeg"},
             },
@@ -62,6 +63,7 @@ def test_from_file_mode_config(tmp_path: Path):
         "from_file": "/data/paths.txt",
         "root": "/data/FOMO300k",
     }
+    assert cfg["input"]["resolve_and_validate_explicit_filepaths"] is False
 
 
 def test_missing_synthseg_home(tmp_path: Path):

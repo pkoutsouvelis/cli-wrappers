@@ -47,6 +47,7 @@ class HDBETRunner(BaseRunner):
         overwrite: bool = True,
         log_dir: Path | str | None = None,
         log_level: LogLevel = "INFO",
+        resolve_and_validate_explicit_filepaths: bool = True,
     ) -> None:
         if not isinstance(save_mask, bool):
             raise ValueError(
@@ -80,6 +81,7 @@ class HDBETRunner(BaseRunner):
             overwrite=overwrite,
             log_dir=log_dir,
             log_level=log_level,
+            resolve_and_validate_explicit_filepaths=resolve_and_validate_explicit_filepaths,
             logger_name="hdbet_wrapper",
             logger_label="HD-BET WRAPPER",
             log_file_prefix="hdbet_run",

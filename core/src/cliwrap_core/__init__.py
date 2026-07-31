@@ -21,6 +21,7 @@ from cliwrap_core.config import (
 from cliwrap_core.explorer_factory import get_data_explorer
 from cliwrap_core.logging_utils import LogLevel, get_logger, setup_logger
 from cliwrap_core.utils import (
+    coerce_path,
     ensure_under_root,
     get_ext,
     normalize_part_indices,
@@ -33,6 +34,7 @@ __all__ = [
     "BaseRunner",
     "OutputSpec",
     "LogLevel",
+    "coerce_path",
     "ensure_under_root",
     "get_data_explorer",
     "get_ext",

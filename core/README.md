@@ -18,8 +18,9 @@ Shared building blocks for the wrappers in [`tools/`](../tools/).
 - `cliwrap_core.logging_utils.setup_logger` — stdout + optional timestamped
   file handler, parametrised by logger name, bracketed label, and file prefix
   so each tool's logs are visibly attributable.
-- `cliwrap_core.utils.resolve_path` / `read_path_list` / `ensure_under_root` /
-  `get_ext` / `normalize_part_indices` / `slice_by_parts`.
+- `cliwrap_core.utils.resolve_path` / `coerce_path` / `read_path_list` /
+  `ensure_under_root` / `get_ext` / `normalize_part_indices` /
+  `slice_by_parts`.
 
 ## Install
 

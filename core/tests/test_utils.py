@@ -50,6 +50,15 @@ def test_read_path_list(tmp_path: Path):
     assert read_path_list(list_file) == [a.resolve(), b.resolve()]
 
 
+def test_read_path_list_without_resolve(tmp_path: Path):
+    list_file = tmp_path / "paths.txt"
+    # Relative path kept as expanduser-only Path (not resolved to absolute).
+    list_file.write_text("rel/a.nii.gz\n", encoding="utf-8")
+    paths = read_path_list(list_file, resolve_paths=False)
+    assert paths == [Path("rel/a.nii.gz").expanduser()]
+    assert not paths[0].is_absolute()
+
+
 def test_read_path_list_empty_raises(tmp_path: Path):
     list_file = tmp_path / "empty.txt"
     list_file.write_text("# only comments\n\n", encoding="utf-8")

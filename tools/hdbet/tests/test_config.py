@@ -46,6 +46,7 @@ def test_files_mode_config(tmp_path: Path):
         )
     )
     assert cfg["input"]["data"] == ["/a.nii.gz", "/b.nii.gz"]
+    assert cfg["input"]["resolve_and_validate_explicit_filepaths"] is True
 
 
 def test_from_file_mode_config(tmp_path: Path):
@@ -56,6 +57,7 @@ def test_from_file_mode_config(tmp_path: Path):
                 "input": {
                     "from_file": "/data/paths.txt",
                     "root": "/data/FOMO300k",
+                    "resolve_and_validate_explicit_filepaths": False,
                 }
             },
         )
@@ -64,6 +66,7 @@ def test_from_file_mode_config(tmp_path: Path):
         "from_file": "/data/paths.txt",
         "root": "/data/FOMO300k",
     }
+    assert cfg["input"]["resolve_and_validate_explicit_filepaths"] is False
 
 
 def test_input_mutual_exclusion_both(tmp_path: Path):

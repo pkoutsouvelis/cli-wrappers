@@ -73,6 +73,7 @@ class SynthSegRunner(BaseRunner):
         overwrite: bool = True,
         log_dir: Path | str | None = None,
         log_level: LogLevel = "INFO",
+        resolve_and_validate_explicit_filepaths: bool = True,
     ) -> None:
         for name, val in [
             ("save_segmentation", save_segmentation),
@@ -131,6 +132,7 @@ class SynthSegRunner(BaseRunner):
             overwrite=overwrite,
             log_dir=log_dir,
             log_level=log_level,
+            resolve_and_validate_explicit_filepaths=resolve_and_validate_explicit_filepaths,
             logger_name="synthseg_wrapper",
             logger_label="SYNTHSEG WRAPPER",
             log_file_prefix="synthseg_run",

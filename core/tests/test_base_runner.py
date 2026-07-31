@@ -104,6 +104,32 @@ def test_explicit_paths_reject_outside_root(tmp_path: Path):
         _DummyRunner(data={"files": [str(outside)], "root": str(root)})
 
 
+def test_skip_resolve_and_validate_allows_outside_root(tmp_path: Path):
+    """When the flag is False, root is trusted and paths are not resolve()-d."""
+    root = tmp_path / "ds"
+    root.mkdir()
+    # Path string that is under root by prefix but we skip ensure_under_root.
+    # Use a path under root so mirroring still works without resolve().
+    p = root / "PT001" / "a.nii.gz"
+    p.parent.mkdir(parents=True)
+    # Do not touch the file — skip resolve so missing files are fine.
+    list_file = tmp_path / "paths.txt"
+    list_file.write_text(f"{p}\n", encoding="utf-8")
+    out_dir = tmp_path / "out"
+
+    runner = _DummyRunner(
+        data={"from_file": str(list_file), "root": str(root)},
+        output_dir=out_dir,
+        resolve_and_validate_explicit_filepaths=False,
+    )
+    assert runner._root == Path(root).expanduser()
+    assert runner._input_files == [Path(str(p)).expanduser()]
+    plans = runner._plan_outputs(
+        [OutputSpec("seg", "synthseg", save=True, required=True)]
+    )
+    assert plans["seg"] == [str(out_dir / "PT001" / "a_synthseg.nii.gz")]
+
+
 def test_from_file_rejects_patterns(tmp_path: Path):
     list_file = tmp_path / "paths.txt"
     list_file.write_text(f"{tmp_path / 'a.nii.gz'}\n", encoding="utf-8")

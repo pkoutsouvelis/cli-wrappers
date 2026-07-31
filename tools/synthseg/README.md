@@ -132,6 +132,8 @@ requires every path to lie under that root:
 input:
   from_file: /data/paths.txt
   root: /data/FOMO300k
+  # Skip Path.resolve() + under-root checks (faster for large absolute lists):
+  # resolve_and_validate_explicit_filepaths: false
 ```
 
 Output behaviour:
@@ -142,6 +144,9 @@ Output behaviour:
 - `files` / `from_file` without `root` write outputs to `output_dir` (flat)
   when set, else alongside each input.
 - `files` / `from_file` with `root` mirror like dataset mode.
+- `resolve_and_validate_explicit_filepaths` (default `true`) applies only to
+  `files` / `from_file`: when `false`, paths are not `resolve()`-d and `root`
+  membership is not checked.
 - `volumes_suffix` and `qc_suffix` (if enabled) produce one CSV per input,
   mirrored under `output_dir` like segmentations (e.g. `sub-01_T1w_qc.csv`).
   SynthSeg batch mode requires these as list files, so the wrapper plans

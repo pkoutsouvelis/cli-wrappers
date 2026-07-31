@@ -10,30 +10,52 @@ from cliwrap_core.config import parse_input
 
 
 def test_parse_input_files():
-    assert parse_input({"files": ["/a.nii.gz"]}) == {"data": ["/a.nii.gz"]}
+    assert parse_input({"files": ["/a.nii.gz"]}) == {
+        "data": ["/a.nii.gz"],
+        "resolve_and_validate_explicit_filepaths": True,
+    }
 
 
 def test_parse_input_files_with_root():
     assert parse_input({"files": ["/data/a.nii.gz"], "root": "/data"}) == {
-        "data": {"files": ["/data/a.nii.gz"], "root": "/data"}
+        "data": {"files": ["/data/a.nii.gz"], "root": "/data"},
+        "resolve_and_validate_explicit_filepaths": True,
     }
 
 
 def test_parse_input_from_file():
     assert parse_input({"from_file": "/data/paths.txt"}) == {
-        "data": {"from_file": "/data/paths.txt"}
+        "data": {"from_file": "/data/paths.txt"},
+        "resolve_and_validate_explicit_filepaths": True,
     }
 
 
 def test_parse_input_from_file_with_root():
     assert parse_input({"from_file": "/data/paths.txt", "root": "/data/FOMO300k"}) == {
-        "data": {"from_file": "/data/paths.txt", "root": "/data/FOMO300k"}
+        "data": {"from_file": "/data/paths.txt", "root": "/data/FOMO300k"},
+        "resolve_and_validate_explicit_filepaths": True,
+    }
+
+
+def test_parse_input_resolve_flag_false():
+    assert parse_input(
+        {
+            "from_file": "/data/paths.txt",
+            "root": "/data/FOMO300k",
+            "resolve_and_validate_explicit_filepaths": False,
+        }
+    ) == {
+        "data": {"from_file": "/data/paths.txt", "root": "/data/FOMO300k"},
+        "resolve_and_validate_explicit_filepaths": False,
     }
 
 
 def test_parse_input_from_file_path_object():
     p = Path("/data/paths.txt")
-    assert parse_input({"from_file": p}) == {"data": {"from_file": p}}
+    assert parse_input({"from_file": p}) == {
+        "data": {"from_file": p},
+        "resolve_and_validate_explicit_filepaths": True,
+    }
 
 
 def test_parse_input_dataset():
@@ -49,6 +71,13 @@ def test_parse_input_rejects_root_with_dataset():
                 "root": "/other",
             }
         )
+
+
+def test_parse_input_dataset_ignores_resolve_flag():
+    ds = {"root": "/data", "patterns": "*.nii.gz"}
+    assert parse_input(
+        {"dataset": ds, "resolve_and_validate_explicit_filepaths": False}
+    ) == {"data": ds}
 
 
 def test_parse_input_rejects_multiple_modes():
