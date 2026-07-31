@@ -75,7 +75,8 @@ class BaseRunner:
             line (blank lines and ``#`` comments ignored). Optional ``root`` on
             ``files`` / ``from_file`` mirrors each path's root-relative parent
             under ``output_dir`` and requires every path to lie under ``root``
-            when ``resolve_and_validate_explicit_filepaths`` is True.
+            when ``resolve_and_validate_explicit_filepaths`` is True. ``root`` is
+            always ``resolve()``-d when provided.
         output_dir: Root output directory. When ``None`` and ``data`` is a
             single file, list, or from_file without ``root``, outputs land next
             to each input; when ``None`` and a ``root`` is set (explicit or
@@ -84,11 +85,13 @@ class BaseRunner:
         log_dir: Optional directory for a timestamped run log.
         log_level: Minimum log level.
         resolve_and_validate_explicit_filepaths: If True (default), explicit
-            paths from ``files`` / ``from_file`` / a bare list are passed through
-            ``Path.resolve()``, and an optional ``root`` is checked with
-            :func:`~cliwrap_core.utils.ensure_under_root`. Set False to only
-            expand ``~`` (faster for large absolute path lists on slow
-            filesystems). Has no effect on dataset discovery.
+            filepaths from ``files`` / ``from_file`` / a bare list are passed
+            through ``Path.resolve()`` and an optional ``root`` is checked with
+            :func:`~cliwrap_core.utils.ensure_under_root`. Set False to skip
+            those steps for the filepaths only (``~`` is still expanded) when
+            the list is already resolved offline — much faster on large lists /
+            slow filesystems. ``root`` itself is always resolved when set.
+            Has no effect on dataset discovery.
         logger_name: Python logger name (e.g. ``"hdbet_wrapper"``).
         logger_label: Bracketed log prefix (e.g. ``"HD-BET WRAPPER"``).
         log_file_prefix: Filename stem for the per-run log file.
@@ -253,14 +256,14 @@ class BaseRunner:
             raise ValueError(
                 f"`root` must be a Path or str object, got {type(root_raw).__name__}"
             )
-        root = coerce_path(root_raw, resolve=do_resolve)
+        root = resolve_path(root_raw)
         if do_resolve:
             ensure_under_root(files, root)
         self._logger.info(
             "Using root %s for output mirroring (%d path(s)%s).",
             root,
             len(files),
-            "" if do_resolve else "; resolve/validate skipped",
+            "" if do_resolve else "; filepath resolve/validate skipped",
         )
         return root, files
 

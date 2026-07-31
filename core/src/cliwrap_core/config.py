@@ -59,13 +59,16 @@ def parse_input(raw: dict[str, Any]) -> dict[str, Any]:
 
     Optional ``root`` may be set alongside ``files`` or ``from_file`` so
     outputs mirror each path's ``root``-relative parent under ``output_dir``.
-    Every listed path must lie under that root unless
-    ``resolve_and_validate_explicit_filepaths`` is False. ``root`` is invalid
-    with ``dataset`` (use ``dataset.root`` instead).
+    ``root`` is always resolved. Every listed filepath must lie under that
+    root unless ``resolve_and_validate_explicit_filepaths`` is False
+    (use ``dataset.root`` instead of a sibling ``root`` with ``dataset``).
 
-    Optional ``resolve_and_validate_explicit_filepaths`` (default True) controls
-    whether explicit paths (``files`` / ``from_file``) are ``resolve()``-d and
-    checked against ``root``. Harmless no-op if set alongside ``dataset``.
+    Optional ``resolve_and_validate_explicit_filepaths`` (default True) applies
+    only to the explicit filepaths themselves (``files`` / ``from_file``): when
+    True they are ``resolve()``-d and checked against ``root``; when False,
+    only ``~`` is expanded — intended for large lists that were already
+    resolved offline (time saving). Does not affect ``root`` resolution.
+    Harmless no-op if set alongside ``dataset``.
 
     Returns a mapping with ``data`` (runner ``data`` argument) and, for
     ``files`` / ``from_file``, ``resolve_and_validate_explicit_filepaths``.

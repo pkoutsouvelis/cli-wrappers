@@ -25,8 +25,9 @@ input:
   #   - /data/sub-02/anat/sub-02_T1w.nii.gz
 
   # Alternative: text file with one filepath per line (# comments / blanks ok).
-  # Optional root mirrors layout under output_dir (paths must lie under root
-  # unless resolve_and_validate_explicit_filepaths is false).
+  # Optional root mirrors layout under output_dir (root is always resolved).
+  # Set resolve_and_validate_explicit_filepaths: false to skip resolve +
+  # under-root checks on the listed filepaths when the list is pre-resolved.
   # from_file: /data/paths.txt
   # root: /data/FOMO300k
   # resolve_and_validate_explicit_filepaths: false

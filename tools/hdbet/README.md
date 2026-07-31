@@ -93,7 +93,8 @@ requires every path to lie under that root:
 input:
   from_file: /data/paths.txt
   root: /data/FOMO300k
-  # Skip Path.resolve() + under-root checks (faster for large absolute lists):
+  # Skip resolve + under-root checks on the listed filepaths only (root is
+  # always resolved). Use when the list was already resolved offline:
   # resolve_and_validate_explicit_filepaths: false
 ```
 
@@ -104,10 +105,12 @@ Output behaviour:
 alongside the inputs.
 - `files` / `from_file` without `root` write outputs to `output_dir` (flat)
 when set, else alongside each input.
-- `files` / `from_file` with `root` mirror like dataset mode.
+- `files` / `from_file` with `root` mirror like dataset mode (`root` is always
+resolved).
 - `resolve_and_validate_explicit_filepaths` (default `true`) applies only to
-`files` / `from_file`: when `false`, paths are not `resolve()`-d and `root`
-membership is not checked.
+the explicit filepaths: when `false`, they are not `resolve()`-d and are not
+checked against `root` (time saving for large pre-resolved lists). Paths
+should already match the resolved `root` form so mirroring works.
 
 
 
