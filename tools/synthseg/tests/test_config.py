@@ -50,12 +50,18 @@ def test_from_file_mode_config(tmp_path: Path):
         _write(
             tmp_path / "cfg.yaml",
             {
-                "input": {"from_file": "/data/paths.txt"},
+                "input": {
+                    "from_file": "/data/paths.txt",
+                    "root": "/data/FOMO300k",
+                },
                 "synthseg": {"synthseg_home": "/opt/Photo-SynthSeg"},
             },
         )
     )
-    assert cfg["input"]["data"] == {"from_file": "/data/paths.txt"}
+    assert cfg["input"]["data"] == {
+        "from_file": "/data/paths.txt",
+        "root": "/data/FOMO300k",
+    }
 
 
 def test_missing_synthseg_home(tmp_path: Path):

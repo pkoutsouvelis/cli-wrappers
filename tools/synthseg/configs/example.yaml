@@ -19,7 +19,9 @@ input:
   #   - /data/sub-02/anat/sub-02_T1w.nii.gz
 
   # Alternative: text file with one filepath per line (# comments / blanks ok).
+  # Optional root mirrors layout under output_dir (paths must lie under root).
   # from_file: /data/paths.txt
+  # root: /data/FOMO300k
 
 output:
   output_dir: /data/derivatives/synthseg

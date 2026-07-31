@@ -124,11 +124,14 @@ input:
 ```
 
 Or load the same kind of list from a text file (one filepath per line;
-blank lines and `#` comments are ignored):
+blank lines and `#` comments are ignored). Optional `root` mirrors each
+path's root-relative parent under `output_dir` (same as dataset mode) and
+requires every path to lie under that root:
 
 ```yaml
 input:
   from_file: /data/paths.txt
+  root: /data/FOMO300k
 ```
 
 Output behaviour:
@@ -136,8 +139,9 @@ Output behaviour:
 - `dataset` mode mirrors each file's `root`-relative path under `output_dir`
   (so BIDS layout is preserved). When `output_dir` is omitted, outputs land
   alongside the inputs.
-- `files` / `from_file` mode writes outputs to `output_dir` (flat) when set,
-  else alongside each input.
+- `files` / `from_file` without `root` write outputs to `output_dir` (flat)
+  when set, else alongside each input.
+- `files` / `from_file` with `root` mirror like dataset mode.
 - `volumes_suffix` and `qc_suffix` (if enabled) produce one CSV per input,
   mirrored under `output_dir` like segmentations (e.g. `sub-01_T1w_qc.csv`).
   SynthSeg batch mode requires these as list files, so the wrapper plans

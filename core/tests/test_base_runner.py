@@ -62,10 +62,52 @@ def test_from_file_loads_paths(tmp_path: Path, capsys):
     assert "Loaded 2 path(s)" in out
 
 
-def test_from_file_rejects_mix_with_dataset_keys(tmp_path: Path):
+def test_from_file_with_root_mirrors_outputs(tmp_path: Path):
+    root = tmp_path / "FOMO300k"
+    p = _touch(root / "PT001" / "sub-01" / "anat" / "T1w.nii.gz")
+    list_file = tmp_path / "paths.txt"
+    list_file.write_text(f"{p}\n", encoding="utf-8")
+    out_dir = tmp_path / "out"
+
+    runner = _DummyRunner(
+        data={"from_file": str(list_file), "root": str(root)},
+        output_dir=out_dir,
+    )
+    assert runner._root == root.resolve()
+    plans = runner._plan_outputs(
+        [OutputSpec("seg", "synthseg", save=True, required=True)]
+    )
+    assert plans["seg"] == [
+        str(out_dir / "PT001" / "sub-01" / "anat" / "T1w_synthseg.nii.gz")
+    ]
+
+
+def test_files_with_root_mirrors_outputs(tmp_path: Path):
+    root = tmp_path / "ds"
+    p = _touch(root / "PT001" / "anat" / "T1w.nii.gz")
+    out_dir = tmp_path / "out"
+    runner = _DummyRunner(
+        data={"files": [str(p)], "root": str(root)},
+        output_dir=out_dir,
+    )
+    plans = runner._plan_outputs(
+        [OutputSpec("seg", "synthseg", save=True, required=True)]
+    )
+    assert plans["seg"] == [str(out_dir / "PT001" / "anat" / "T1w_synthseg.nii.gz")]
+
+
+def test_explicit_paths_reject_outside_root(tmp_path: Path):
+    root = tmp_path / "ds"
+    root.mkdir()
+    outside = _touch(tmp_path / "other" / "a.nii.gz")
+    with pytest.raises(ValueError, match="not under root"):
+        _DummyRunner(data={"files": [str(outside)], "root": str(root)})
+
+
+def test_from_file_rejects_patterns(tmp_path: Path):
     list_file = tmp_path / "paths.txt"
     list_file.write_text(f"{tmp_path / 'a.nii.gz'}\n", encoding="utf-8")
-    with pytest.raises(ValueError, match="cannot mix"):
+    with pytest.raises(ValueError, match="patterns"):
         _DummyRunner(
             data={"from_file": str(list_file), "root": str(tmp_path), "patterns": "*"}
         )

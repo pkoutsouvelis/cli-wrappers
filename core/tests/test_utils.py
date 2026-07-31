@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from cliwrap_core.utils import (
+    ensure_under_root,
     get_ext,
     normalize_part_indices,
     read_path_list,
@@ -18,6 +19,24 @@ from cliwrap_core.utils import (
 def test_resolve_path_expands_and_resolves(tmp_path: Path):
     p = resolve_path(tmp_path / "x")
     assert p.is_absolute()
+
+
+def test_ensure_under_root_ok(tmp_path: Path):
+    root = tmp_path / "ds"
+    p = root / "a" / "b.nii.gz"
+    p.parent.mkdir(parents=True)
+    p.write_bytes(b"")
+    ensure_under_root([p.resolve()], root.resolve())
+
+
+def test_ensure_under_root_rejects_outside(tmp_path: Path):
+    root = (tmp_path / "ds").resolve()
+    root.mkdir()
+    outside = (tmp_path / "other" / "a.nii.gz").resolve()
+    outside.parent.mkdir(parents=True)
+    outside.write_bytes(b"")
+    with pytest.raises(ValueError, match="not under root"):
+        ensure_under_root([outside], root)
 
 
 def test_read_path_list(tmp_path: Path):

@@ -13,6 +13,19 @@ def resolve_path(path: Path | str) -> Path:
     return Path(path).expanduser().resolve()
 
 
+def ensure_under_root(paths: Sequence[Path], root: Path) -> None:
+    """Raise ``ValueError`` if any path is not under ``root``.
+
+    Both ``paths`` and ``root`` should already be resolved absolute paths.
+    """
+    root = root.resolve()
+    for path in paths:
+        try:
+            path.resolve().relative_to(root)
+        except ValueError as e:
+            raise ValueError(f"Input path {path} is not under root {root}") from e
+
+
 def read_path_list(path: Path | str) -> list[Path]:
     """Read absolute/relative filepaths from a text file (one path per line).
 

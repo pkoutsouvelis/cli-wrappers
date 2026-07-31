@@ -52,10 +52,18 @@ def test_from_file_mode_config(tmp_path: Path):
     cfg = load_config(
         _write(
             tmp_path / "cfg.yaml",
-            {"input": {"from_file": "/data/paths.txt"}},
+            {
+                "input": {
+                    "from_file": "/data/paths.txt",
+                    "root": "/data/FOMO300k",
+                }
+            },
         )
     )
-    assert cfg["input"]["data"] == {"from_file": "/data/paths.txt"}
+    assert cfg["input"]["data"] == {
+        "from_file": "/data/paths.txt",
+        "root": "/data/FOMO300k",
+    }
 
 
 def test_input_mutual_exclusion_both(tmp_path: Path):

@@ -25,6 +25,7 @@ from typing import Any, Sequence, TypeAlias
 from cliwrap_core.explorer_factory import get_data_explorer
 from cliwrap_core.logging_utils import LogLevel, setup_logger
 from cliwrap_core.utils import (
+    ensure_under_root,
     get_ext,
     normalize_part_indices,
     read_path_list,
@@ -64,16 +65,19 @@ class BaseRunner:
     """Shared scaffolding for tool-specific runners.
 
     Args:
-        data: Input spec: a single Path/str, a list of Paths/strs, a path-list
-            mapping ``{"from_file": "/path/to/paths.txt"}``, or a dataset
+        data: Input spec: a single Path/str, a list of Paths/strs, an explicit
+            path mapping ``{"files": [...], "root":?}`` or
+            ``{"from_file": "/path/to/paths.txt", "root":?}``, or a dataset
             mapping ``{"root": ..., "patterns": ..., "levels": ..., "filters": ...}``.
             ``levels`` and ``filters`` are optional; omit ``levels`` for a flat
             recursive scan. ``from_file`` is a text file with one filepath per
-            line (blank lines and ``#`` comments ignored).
+            line (blank lines and ``#`` comments ignored). Optional ``root`` on
+            ``files`` / ``from_file`` mirrors each path's root-relative parent
+            under ``output_dir`` and requires every path to lie under ``root``.
         output_dir: Root output directory. When ``None`` and ``data`` is a
-            single file, list, or from_file, outputs land next to each input;
-            when ``None`` and ``data`` is a dataset mapping, outputs land next
-            to inputs (i.e., under the dataset root).
+            single file, list, or from_file without ``root``, outputs land next
+            to each input; when ``None`` and a ``root`` is set (explicit or
+            dataset), outputs land next to inputs under that root.
         overwrite: Whether to re-process inputs whose required outputs exist.
         log_dir: Optional directory for a timestamped run log.
         log_level: Minimum log level.
@@ -145,22 +149,8 @@ class BaseRunner:
             return None, [resolve_path(p) for p in data]
 
         if isinstance(data, dict):
-            if "from_file" in data:
-                if "root" in data or "patterns" in data:
-                    raise ValueError(
-                        "data cannot mix 'from_file' with dataset keys "
-                        "('root', 'patterns')"
-                    )
-                from_file = data["from_file"]
-                if not isinstance(from_file, (Path, str)):
-                    raise ValueError(
-                        "`from_file` must be a Path or str, "
-                        f"got {type(from_file).__name__}"
-                    )
-                self._logger.info("Reading paths from: %s", from_file)
-                files = read_path_list(from_file)
-                self._logger.info("Loaded %d path(s) from %s.", len(files), from_file)
-                return None, files
+            if "from_file" in data or "files" in data:
+                return self._resolve_explicit_paths(data)
 
             self._logger.info("Instantiating data explorer...")
 
@@ -194,6 +184,61 @@ class BaseRunner:
             return root, files
 
         raise AssertionError("unreachable")  # pragma: no cover
+
+    def _resolve_explicit_paths(
+        self, data: dict[str, Any]
+    ) -> tuple[Path | None, list[Path]]:
+        """Resolve ``files`` / ``from_file`` payloads with optional ``root``."""
+        if "from_file" in data and "files" in data:
+            raise ValueError("data cannot contain both 'from_file' and 'files'")
+        if "patterns" in data:
+            raise ValueError(
+                "data cannot mix explicit paths ('files' / 'from_file') with "
+                "'patterns'"
+            )
+
+        unknown = set(data.keys()) - {"from_file", "files", "root"}
+        if unknown:
+            raise ValueError(
+                "explicit path data cannot contain keys other than "
+                f"['files', 'from_file', 'root']; got unexpected keys {sorted(unknown)}"
+            )
+
+        if "from_file" in data:
+            from_file = data["from_file"]
+            if not isinstance(from_file, (Path, str)):
+                raise ValueError(
+                    "`from_file` must be a Path or str, "
+                    f"got {type(from_file).__name__}"
+                )
+            self._logger.info("Reading paths from: %s", from_file)
+            files = read_path_list(from_file)
+            self._logger.info("Loaded %d path(s) from %s.", len(files), from_file)
+        else:
+            raw_files = data["files"]
+            if not isinstance(raw_files, list):
+                raise ValueError(
+                    "`files` must be a list of paths, "
+                    f"got {type(raw_files).__name__}"
+                )
+            if any(not isinstance(p, (Path, str)) for p in raw_files):
+                raise ValueError("Input list must contain only Path or str objects")
+            files = [resolve_path(p) for p in raw_files]
+
+        root_raw = data.get("root")
+        if root_raw is None:
+            return None, files
+
+        if not isinstance(root_raw, (Path, str)):
+            raise ValueError(
+                f"`root` must be a Path or str object, got {type(root_raw).__name__}"
+            )
+        root = resolve_path(root_raw)
+        ensure_under_root(files, root)
+        self._logger.info(
+            "Using root %s for output mirroring (%d path(s)).", root, len(files)
+        )
+        return root, files
 
     def _out_parent_for(self, p: Path) -> Path:
         """Return the directory in which outputs for ``p`` should be written."""
