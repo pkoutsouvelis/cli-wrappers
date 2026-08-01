@@ -208,6 +208,22 @@ def test_plan_outputs_skips_when_required_output_exists(tmp_path: Path):
     assert plans["seg"] == []
 
 
+def test_plan_outputs_logs_progress_when_all_skipped(tmp_path: Path, capsys):
+    """Progress must still log when overwrite=False skips every input."""
+    files = []
+    for name in ("a", "b", "c"):
+        p = _touch(tmp_path / f"{name}.nii.gz")
+        _touch(tmp_path / f"{name}_synthseg.nii.gz")
+        files.append(p)
+    runner = _DummyRunner(data=files, overwrite=False)
+    plans = runner._plan_outputs(
+        [OutputSpec("seg", "synthseg", save=True, required=True)]
+    )
+    assert plans["__inputs__"] == []
+    out = capsys.readouterr().out
+    assert "Planning progress: 3/3 inputs (kept 0)." in out
+
+
 def test_plan_outputs_does_not_skip_when_only_optional_exists(tmp_path: Path):
     p = _touch(tmp_path / "scan.nii.gz")
     _touch(tmp_path / "scan_post.nii.gz")  # optional output

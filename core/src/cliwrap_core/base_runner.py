@@ -353,16 +353,17 @@ class BaseRunner:
                 spec.name: self._output_path(p, spec.suffix) for spec in specs
             }
 
-            if not self._overwrite and any(
+            skip = not self._overwrite and any(
                 spec.required and candidate_outputs[spec.name].exists()
                 for spec in specs
-            ):
-                continue
+            )
+            if not skip:
+                plans["__inputs__"].append(str(p))
+                for spec in specs:
+                    plans[spec.name].append(str(candidate_outputs[spec.name]))
 
-            plans["__inputs__"].append(str(p))
-            for spec in specs:
-                plans[spec.name].append(str(candidate_outputs[spec.name]))
-
+            # Log outside the keep/skip branch so overwrite=False skips still
+            # report progress (including the final i == n tick).
             if i == n or i % 1000 == 0:
                 self._logger.info(
                     "Planning progress: %d/%d inputs (kept %d).",
