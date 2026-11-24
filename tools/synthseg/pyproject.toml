@@ -36,6 +36,10 @@ test = [
 synthseg-wrapper = "synthseg_wrapper.cli:main"
 synthseg-setup = "synthseg_wrapper.setup:main"
 
+# Local package; not published. uv-only — pip still needs `pip install -e ../../core` first.
+[tool.uv.sources]
+cliwrap-core = { path = "../../core", editable = true }
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 
